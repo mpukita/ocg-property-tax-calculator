@@ -1,0 +1,971 @@
+<title>Property Tax Abolition Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* Layout: a research-publication column with a pinned balance meter; panels are questions read top to bottom, levers sit in a two-up card grid. */
+:root{
+  --navy:#1F3864; --gold:#BF8B14; --blue:#2E75B6; --grey:#595959;
+  --bg:#F5F7FA; --surface:#FFFFFF; --fg:#1B2433; --muted:#566070; --line:#D6DCE6; --soft:#E9EEF5;
+  --head:#1F3864; --accent:#2E75B6; --mark:#BF8B14; --ok:#23704A; --okbg:#E3F1E9; --short:#A8352A; --shortbg:#F8E6E3;
+  --draft:#7A5A0E; --draftbg:#FBF1D9; --focus:#2E75B6;
+  --font:"Carlito","Calibri","Segoe UI",system-ui,sans-serif;
+  --s-1:.8125rem; --s0:1rem; --s1:1.125rem; --s2:1.375rem; --s3:1.75rem; --s4:2.25rem;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0E1522; --surface:#152035; --fg:#E4E9F1; --muted:#A3AEC0; --line:#2B3950; --soft:#1B2840;
+  --head:#B9CCEC; --accent:#79B0E6; --mark:#E2B04A; --ok:#6FCB98; --okbg:#173326; --short:#F08E80; --shortbg:#3A1E1B;
+  --draft:#F0CF86; --draftbg:#33280F; --focus:#79B0E6; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1522; --surface:#152035; --fg:#E4E9F1; --muted:#A3AEC0; --line:#2B3950; --soft:#1B2840;
+  --head:#B9CCEC; --accent:#79B0E6; --mark:#E2B04A; --ok:#6FCB98; --okbg:#173326; --short:#F08E80; --shortbg:#3A1E1B;
+  --draft:#F0CF86; --draftbg:#33280F; --focus:#79B0E6; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+section.q,.card{scroll-margin-top:170px}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(--s0);line-height:1.5}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:16px;padding-block:0 64px}
+h1,h2,h3{color:var(--head);text-wrap:balance;line-height:1.2;margin:0}
+h1{font-size:var(--s4)} h2{font-size:var(--s3)} h3{font-size:var(--s1)}
+p{margin:0} .muted{color:var(--muted)} .small{font-size:var(--s-1)}
+.num,table,.fig{font-variant-numeric:tabular-nums}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.eyebrow{font-size:var(--s-1);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.draft{background:var(--draftbg);color:var(--draft);border:1px solid color-mix(in srgb,var(--draft) 35%,transparent);padding:10px 14px;border-radius:4px;font-size:var(--s-1)}
+header.top{display:grid;gap:10px;padding-block:28px 18px}
+header.top .lede{max-width:68ch;color:var(--muted)}
+
+/* meter */
+.meter{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:grid;gap:8px;box-shadow:0 6px 18px -14px rgba(15,25,45,.5)}
+.meter .figs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.meter .fig .k{font-size:var(--s-1);color:var(--muted);line-height:1.2}
+.meter .fig .v{font-size:var(--s2);font-weight:700;color:var(--head)}
+.meter .fig.bal .v.neg{color:var(--short)} .meter .fig.bal .v.pos{color:var(--ok)}
+.bar{height:10px;border-radius:5px;background:var(--soft);overflow:hidden;display:flex}
+.bar span{display:block;height:100%}
+.bar .ver{background:var(--accent)} .bar .usr{background:repeating-linear-gradient(45deg,var(--mark) 0 4px,transparent 4px 7px)}
+.status{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;font-size:var(--s-1)}
+.pill{display:inline-block;padding:1px 9px;border-radius:999px;font-weight:700;font-size:var(--s-1)}
+.pill.ok{background:var(--okbg);color:var(--ok)} .pill.short{background:var(--shortbg);color:var(--short)} .pill.note{background:var(--soft);color:var(--muted)}
+.meter details summary{cursor:pointer;color:var(--accent);font-size:var(--s-1)}
+
+/* sections */
+section.q{padding-block:34px 6px;border-top:1px solid var(--line);margin-top:30px;display:grid;gap:16px}
+section.q > .intro{max-width:70ch;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px;display:grid;gap:10px;min-width:0;align-content:start}
+.card.off{opacity:.62}
+.card .hd{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.card .id{font-size:var(--s-1);font-weight:700;color:var(--mark);letter-spacing:.06em}
+.tag{font-size:var(--s-1);color:var(--muted)}
+.yield{font-weight:700;color:var(--head)}
+.why{font-size:var(--s-1);color:var(--muted);border-left:2px solid var(--line);padding-left:10px}
+.flag{font-size:var(--s-1);color:var(--short);font-weight:700}
+.tbd{font-size:var(--s-1);color:var(--draft)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:5px;overflow:hidden;flex-wrap:wrap}
+.seg label{padding:6px 12px;cursor:pointer;font-size:var(--s-1);background:var(--surface);border-right:1px solid var(--line)}
+.seg label:last-child{border-right:0}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label:has(input:checked){background:var(--navy);color:#fff}
+:root[data-theme="dark"] .seg label:has(input:checked){background:var(--accent);color:#0E1522}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .seg label:has(input:checked){background:var(--accent);color:#0E1522}}
+.seg label:has(input:focus-visible){outline:2px solid var(--focus);outline-offset:-2px}
+.seg label:has(input:disabled){opacity:.45;cursor:not-allowed}
+.ctl{display:grid;gap:4px}
+.ctl .lab{display:flex;justify-content:space-between;gap:8px;font-size:var(--s-1)}
+.ctl .pair{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:10px;align-items:center}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=number],input[type=text],select{font:inherit;font-size:var(--s0);padding:5px 8px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--fg);width:100%;min-width:0}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:var(--s0)}
+.check input{margin-top:4px}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:var(--s-1)}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:700;background:var(--soft)}
+tr:last-child td{border-bottom:0}
+tr.gaprow td{background:var(--shortbg)}
+td.l,th.l{text-align:left}
+.quote{font-size:var(--s-1);color:var(--muted);font-style:italic}
+.payers{display:grid;gap:6px}
+.pay{display:grid;grid-template-columns:minmax(0,15rem) minmax(0,1fr) 6.5rem;gap:10px;align-items:center;font-size:var(--s-1)}
+.pay .track{height:12px;background:var(--soft);border-radius:3px;overflow:hidden}
+.pay .track span{display:block;height:100%;background:var(--accent)}
+.pay.before .track span{background:var(--grey)}
+:root[data-theme="dark"] .pay.before .track span{background:var(--muted)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .pay.before .track span{background:var(--muted)}}
+.pay.red .track span{background:var(--mark)}
+.pay.gap .track span{background:var(--short)}
+.pay .v{text-align:right}
+.big{font-size:var(--s3);font-weight:700;color:var(--head)}
+.phi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.phi div{border:1px solid var(--line);border-radius:5px;padding:8px;text-align:center;background:var(--surface)}
+.btn{font:inherit;font-size:var(--s-1);padding:7px 12px;border:1px solid var(--line);border-radius:5px;background:var(--surface);color:var(--fg);cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--navy);color:#fff;border-color:var(--navy)}
+details.drawer{border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:12px 14px}
+details.drawer > summary{cursor:pointer;font-weight:700;color:var(--head);font-size:var(--s1)}
+details.drawer .inner{display:grid;gap:18px;margin-top:14px}
+textarea{width:100%;min-height:120px;font:12px/1.4 ui-monospace,Consolas,monospace;background:var(--soft);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:8px}
+.banner{border:1px solid var(--short);background:var(--shortbg);color:var(--fg);padding:10px 14px;border-radius:5px}
+.vintage{border:1px solid var(--accent);background:var(--soft);padding:10px 14px;border-radius:5px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:720px){
+  .grid2{grid-template-columns:minmax(0,1fr)}
+  .meter .figs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .meter .fig .v{font-size:var(--s1)}
+  .pay{grid-template-columns:minmax(0,1fr) 5.5rem}
+  .pay .track{grid-column:1 / -1;grid-row:2}
+  h1{font-size:var(--s3)} h2{font-size:var(--s2)}
+  .phi{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:420px){.meter{position:static}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+<header class="top">
+  <div class="eyebrow">Ohio Common Ground Research Center · Calculator</div>
+  <h1>Property Tax Abolition Calculator</h1>
+  <p class="lede">If Ohio abolished real property taxes, what would replace the revenue? Build a replacement mix, choose how much current spending to keep, and see whether the mix covers each kind of local government and what it does to your household. The calculator shows options and their costs. It does not pick one.</p>
+  <div class="draft" id="draftNote"><b>Beta test version.</b> This calculator has not yet been independently validated. Its figures may change and should not be cited. Questions or problems: <a href="mailto:info@ohiocommonground.com">info@ohiocommonground.com</a> <span class="sr">Data <span id="dvLabel">2026.1</span>, <span id="pendingN">43</span> parameters under verification.</span></div>
+  <div id="vintageNote" class="vintage" hidden></div>
+  <div id="r9Banner" class="banner" hidden></div>
+</header>
+
+<div class="meter" id="meter" aria-describedby="meterLive">
+  <div class="figs">
+    <div class="fig"><div class="k">Requirement</div><div class="v" id="mReq">—</div></div>
+    <div class="fig"><div class="k">Verified revenue</div><div class="v" id="mVer">—</div></div>
+    <div class="fig"><div class="k">User-entered revenue (unverified)</div><div class="v" id="mUsr">—</div></div>
+    <div class="fig bal"><div class="k">Balance</div><div class="v" id="mBal">—</div></div>
+  </div>
+  <div class="bar" aria-hidden="true"><span class="ver" id="barVer"></span><span class="usr" id="barUsr"></span></div>
+  <div class="status" id="mStatus"></div>
+  <div class="sr" aria-live="polite" id="meterLive"></div>
+</div>
+
+<!-- 0. Period and basis -->
+<section class="q" id="sec-period">
+  <h2>Which year and which revenue basis?</h2>
+  <p class="intro">Base-year mode uses tax year 2024 property taxes, the latest actual figures, paid in calendar 2025. The LBO path uses LBO's tax year 2027 projection, which LBO pairs with fiscal 2028 income tax for its assumed November 2026 vote.</p>
+  <div class="row">
+    <div class="seg" role="radiogroup" aria-label="Year">
+      <label><input type="radio" name="path" value="b" id="path_b">Base year: TY 2024</label>
+      <label><input type="radio" name="path" value="t" id="path_t">LBO path: TY 2027</label>
+    </div>
+    <div class="seg" role="radiogroup" aria-label="Revenue basis">
+      <label><input type="radio" name="basis" value="a" id="basis_a">State yields: all funds</label>
+      <label><input type="radio" name="basis" value="g" id="basis_g">State yields: GRF only</label>
+    </div>
+  </div>
+  <p class="small muted" id="pairLabel"></p>
+  <p class="small muted">All funds is the default because the state's share of every tax dollar is not limited to the General Revenue Fund; ORC 131.51 credits fixed shares of GRF tax revenue to the Local Government Fund and Public Library Fund. GRF figures are one click away and both appear in the methodology drawer.</p>
+</section>
+
+<!-- 1. Scope -->
+<section class="q" id="sec-scope">
+  <h2>What property taxes are you eliminating?</h2>
+  <div class="seg" role="radiogroup" aria-label="Scope">
+    <label><input type="radio" name="scope" value="r" id="scope_r">All real property (the amendment)</label>
+    <label><input type="radio" name="scope" value="s" id="scope_s">School levies only</label>
+    <label><input type="radio" name="scope" value="a" id="scope_a">All property, adding utility TPP</label>
+  </div>
+  <p class="small muted" id="scopeNote"></p>
+  <div class="tblwrap"><table id="tblLost"></table></div>
+</section>
+
+<!-- 2. Obligations -->
+<section class="q" id="sec-oblig">
+  <h2>What happens to existing obligations and state payments?</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3>Fixed-sum levies (bond and other fixed-dollar levies)</h3>
+      <div class="seg" role="radiogroup" aria-label="Fixed-sum treatment">
+        <label><input type="radio" name="fixed" value="s" id="fixed_s">Shift to utility property (LBO method)</label>
+        <label><input type="radio" name="fixed" value="k" id="fixed_k">Keep in the requirement</label>
+      </div>
+      <p class="small" id="fixedNote"></p>
+      <p class="quote">LBO: the shift "could essentially double the statewide tax burden to TPP owners," with regulated utilities recovering the cost through rates. (LBO R-136-1958)</p>
+      <p class="quote">OBM: "If this revenue stream disappears, currently outstanding debt would likely be declared immediately in default." (OBM memo, Feb. 2026, p. 3)</p>
+      <p class="small muted">The page shows both treatments and offers no legal opinion. LBO does not split the fixed-sum amount by government type; this page attributes it in proportion to taxes charged. That is a method, not an LBO figure.</p>
+    </div>
+    <div class="card">
+      <h3>State reimbursement payments</h3>
+      <label class="check"><input type="checkbox" id="redirect"><span>Use state reimbursement savings for replacement aid</span></label>
+      <p class="small" id="redirectNote"></p>
+      <p class="small muted">The state already pays <span id="b10txt"></span> a year to local governments for the 10% and 2.5% rollbacks and the homestead exemption (TY 2024). With no property tax, those payments end. Whether that money becomes replacement aid is a choice for the General Assembly.</p>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Shown for scale, outside the math</h3>
+    <ul class="small" id="scaleLines" style="margin:0;padding-left:1.1rem;display:grid;gap:4px"></ul>
+  </div>
+</section>
+
+<!-- 3. Spending -->
+<section class="q" id="sec-spend">
+  <h2>How much current spending do you want to keep?</h2>
+  <div class="grid2">
+    <div class="card" id="schoolCard">
+      <h3>School spending reduction</h3>
+      <div class="ctl">
+        <div class="lab"><label for="x">Cut school spending by</label><span class="num" id="xOut"></span></div>
+        <div class="pair"><input type="range" id="x" min="0" max="50" step="0.5" aria-describedby="xOut"><input type="number" id="x_n" min="0" max="50" step="0.5" aria-label="School cut, percent"></div>
+      </div>
+      <div class="ctl"><label for="sbase" class="small">Percentage of</label>
+        <select id="sbase">
+          <option value="B">District general-fund spending, $24.4B (B18)</option>
+          <option value="C">School property tax not replaced, $13.61B (B5)</option>
+          <option value="A">State plus local school revenue, $21.83B (derived from ODEW district data; not a published ODEW total)</option>
+        </select></div>
+      <p class="small" id="sbaseNote"></p>
+      <div class="small" id="xRead"></div>
+      <p class="small muted">One uniform statewide percentage. The calculator does not identify what would be cut, and does not treat the cut as spending that serves no purpose.</p>
+    </div>
+    <div class="card" id="nsCard">
+      <h3>Other local governments</h3>
+      <p class="small muted">These are funding levels you choose, not identified reductions in cost. Lower levels mean less revenue for those governments, not lower cost. The 50% floor is a limit of this calculator, not a policy finding.</p>
+      <div id="nsSliders" style="display:grid;gap:10px"></div>
+      <div class="small" id="nsRead"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. Levers -->
+<section class="q" id="sec-levers">
+  <h2>How do you want to raise the rest?</h2>
+  <p class="intro">Every lever starts at zero. Each shows its yield, who remits the tax by law (not who bears it economically), and where its yield base comes from.</p>
+  <div class="card">
+    <h3>Presets</h3>
+    <p class="small muted">None is loaded on open and none is recommended. Each sets one approach, then uses the state sales tax (or, on the TY 2027 path, the flat income tax) for whatever remains. Presets reset the levers but keep your spending choices.</p>
+    <div class="row" id="presets"></div>
+  </div>
+  <div class="grid2" id="levers"></div>
+  <div class="card">
+    <h3>Erosion: how much each tax base shrinks when its rate rises</h3>
+    <p class="small muted">Each starts at 0%, which is a static estimate. The page names no "moderate" or "high" setting.</p>
+    <div class="grid2" id="erosion"></div>
+  </div>
+</section>
+
+<!-- 5. Coverage -->
+<section class="q" id="sec-cov">
+  <h2>Does every kind of local government get its revenue back?</h2>
+  <div class="ctl" style="max-width:42rem"><label for="route" class="small">How state-collected revenue is shared among government types</label>
+    <select id="route">
+      <option value="l">In proportion to each type's loss still remaining after local revenue (default)</option>
+      <option value="c">In proportion to each type's loss after spending reductions, ignoring local revenue</option>
+      <option value="p" disabled>Per capita (not available: data 2026.1 has no population by jurisdiction)</option>
+    </select></div>
+  <p class="small" id="routeRule"></p>
+  <div class="tblwrap"><table id="tblCov"></table></div>
+  <p class="small muted" id="covFoot"></p>
+</section>
+
+<!-- 6. Payers -->
+<section class="q" id="sec-pay">
+  <h2>Who pays, before and after?</h2>
+  <p class="intro">Statutory payers only: who remits each tax by law. Economic incidence (who finally bears a tax through prices, rents or wages) is contested and not modeled.</p>
+  <div class="grid2">
+    <div class="card"><h3>Before</h3><div class="payers" id="payBefore"></div></div>
+    <div class="card"><h3>After</h3><div class="payers" id="payAfter"></div></div>
+  </div>
+</section>
+
+<!-- 7. OBM -->
+<section class="q" id="sec-obm">
+  <h2>How does this compare with OBM's 15–18% figure?</h2>
+  <p class="intro">These rows do not reproduce or evaluate OBM's estimate. OBM does not publish the target or method behind its 15–18% figure. The rows show the replacement amounts that produce given state rates at a static yield on the FY 2025 base. They are not a finding that OBM's estimate is wrong.</p>
+  <div class="tblwrap"><table id="tblObm"></table></div>
+  <p class="small muted">The range fits a target between about $22 billion and $24 billion plus some erosion, or a larger target at a static yield. OBM does not say which, and the page does not claim to know.</p>
+  <p class="quote">OBM: "To moderate the potential rate increase, the sales tax base could be broadened to tax food, healthcare, or other goods or services that are currently exempt. Note that base-broadening would require statutory and, in some cases, constitutional, changes." (OBM memo, Feb. 2026, p. 2)</p>
+</section>
+
+<!-- 8. Household -->
+<section class="q" id="sec-hh">
+  <h2>What does this scenario do to your household?</h2>
+  <p class="intro">Uses only the levers that land directly on households. Nothing you enter here leaves your browser, is stored, or goes into a shared link.</p>
+  <div class="grid2">
+    <div class="card">
+      <div class="seg" role="radiogroup" aria-label="Home">
+        <label><input type="radio" name="ten" value="o" id="ten_o" checked>I own my home</label>
+        <label><input type="radio" name="ten" value="r" id="ten_r">I rent</label>
+      </div>
+      <div class="ctl"><label for="hCounty" class="small">County</label><select id="hCounty"></select></div>
+      <div class="ctl"><label for="hTD" class="small">Taxing district, as printed on the tax bill</label><select id="hTD"></select></div>
+      <div id="ownerIn" style="display:grid;gap:10px">
+        <div class="ctl"><label for="hBill" class="small">Net annual property tax bill, after credits (preferred)</label><input type="number" id="hBill" min="0" step="1" placeholder="e.g. from your tax bill"></div>
+        <div class="ctl"><label for="hVal" class="small">Or market value of the home, to estimate the bill</label><input type="number" id="hVal" min="0" step="1000" placeholder="county auditor's market value"></div>
+        <label class="check small"><input type="checkbox" id="hOcc" checked><span>Owner-occupied (2.5% rollback applies)</span></label>
+      </div>
+      <div id="renterIn" style="display:grid;gap:10px" hidden>
+        <div class="ctl"><label for="hBldg" class="small">Building's annual property tax bill (county auditor)</label><input type="number" id="hBldg" min="0" step="1"></div>
+        <div class="ctl"><label for="hUnits" class="small">Units in the building</label><input type="number" id="hUnits" min="1" step="1"></div>
+        <div class="ctl"><label for="hRentTax" class="small">Or a known annual figure for your unit</label><input type="number" id="hRentTax" min="0" step="1"></div>
+        <div class="ctl"><label for="hPhi" class="small">Share of that tax passed through to your rent, φ (no default; leave blank to compare)</label><input type="number" id="hPhi" min="0" max="100" step="1" placeholder="%"></div>
+        <label class="check small"><input type="checkbox" id="hFour"><span>Building has four or more units (Class II property under ORC 5713.041)</span></label>
+      </div>
+      <div class="ctl" id="schShareCtl" hidden><label for="hSchShare" class="small">School share of your bill, % (school-levies scope). Leave blank to use the statewide share.</label><input type="number" id="hSchShare" min="0" max="100" step="0.1"></div>
+    </div>
+    <div class="card">
+      <div class="ctl"><label for="hAGI" class="small">Ohio adjusted gross income (IT 1040, line 3), not federal AGI</label><input type="number" id="hAGI" min="0" step="100"></div>
+      <div class="row">
+        <div class="ctl" style="flex:1 1 8rem"><label for="hEx" class="small">Exemptions claimed</label><input type="number" id="hEx" min="0" step="1" value="1"></div>
+        <div class="ctl" style="flex:1 1 10rem"><label for="hBiz" class="small">Taxable business income (line 7)</label><input type="number" id="hBiz" min="0" step="100" value="0"></div>
+      </div>
+      <div class="ctl"><label for="hFS" class="small">Filing status</label><select id="hFS"><option value="s">Single, joint, or head of household</option><option value="m">Married filing separately</option></select></div>
+      <p class="small muted" id="nbOut"></p>
+      <div class="ctl"><label for="hSpend" class="small">Your annual spending on items subject to sales tax (you enter it; no default)</label><input type="number" id="hSpend" min="0" step="100"></div>
+      <div class="ctl" id="hSDctl"><label for="hSD" class="small">School district, for a school-district income tax</label><select id="hSD"></select></div>
+      <label class="check small"><input type="checkbox" id="hBizOwner"><span>I own a business</span></label>
+    </div>
+  </div>
+  <div class="card" id="hhOut" aria-live="polite"></div>
+</section>
+
+<!-- 9. Methodology -->
+<section class="q" id="sec-method">
+  <h2>Methodology, sources and sharing</h2>
+  <div class="card">
+    <h3>Share this scenario</h3>
+    <p class="small muted">The link records your scenario, the model version and the data version. It never includes household entries.</p>
+    <div class="row"><input type="text" id="shareTxt" readonly aria-label="Scenario link" style="flex:1 1 20rem"><button class="btn primary" id="copyLink">Copy link</button></div>
+    <div class="row"><input type="text" id="loadTxt" placeholder="Paste a scenario link or code" aria-label="Scenario to load" style="flex:1 1 20rem"><button class="btn" id="loadBtn">Open scenario</button><button class="btn" id="resetBtn">Reset everything</button></div>
+    <p class="small" id="shareMsg" aria-live="polite"></p>
+  </div>
+  <details class="drawer" id="drawer">
+    <summary>Methodology drawer: every constant, source, intermediate and the accounting ledger</summary>
+    <div class="inner" id="drawerInner"></div>
+  </details>
+</section>
+</div>
+
+<script>
+"use strict";
+const MODEL = "1.0", CURRENT_DATA = "2026.1";
+const PUBLIC_URL = "https://www.ohiocommonground.com/ohio-property-tax-calculator-beta-version";
+const IN_FRAME = (()=>{try{return window.self!==window.top}catch(e){return true}})();
+const TYPES = [
+  {k:"sch", b:"B5", name:"School districts (incl. JVSDs)"},
+  {k:"cty", b:"B6", name:"Counties"},
+  {k:"twp", b:"B7", name:"Townships"},
+  {k:"mun", b:"B8", name:"Municipalities"},
+  {k:"spd", b:"B9", name:"Special districts (libraries, parks, fire and others)"}];
+const NS = TYPES.slice(1);
+const DEF = {pa:"b",ba:"a",sc:"r",fs:"s",rd:0,x:0,sb:"B",fcty:100,ftwp:100,fmun:100,fspd:100,
+  r1:0,r3:0,r4:0,r4m:"a",r4a:3.75,r4b:5,r4c:7.5,r4d:10,r5:0,r6:0,r7:0,r7a:100,r7l:0,r8:0,r8a:100,r9:0,r9t:"st",
+  bs:0,bi:0,bc:0,ro:"l"};
+let S = {...DEF};
+let D = null, dataVersion = CURRENT_DATA, linkData = null;
+
+/* ---------- formatting ---------- */
+const B = v => (v<0?"−":"")+"$"+(Math.abs(v)/1e9).toFixed(2)+"B";
+const M = v => (v<0?"−":"")+"$"+(Math.abs(v)/1e6).toFixed(1)+"M";
+const USD = v => (v<0?"−":"")+"$"+Math.round(Math.abs(v)).toLocaleString("en-US");
+const PCT = (v,d=2) => v.toFixed(d)+"%";
+const money = v => Math.abs(v) >= 1e9 ? B(v) : M(v);
+const el = id => document.getElementById(id);
+const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---------- engine (pure) ---------- */
+function prm(id){ return Number(D.parameters[id].value); }
+function law(id){ return Number(D.law[id].value); }
+
+function r4Schedule(st){
+  const th=[26050,100000,250000,500000,1e6], rs=[2.75,st.r4a,st.r4b,st.r4c,st.r4d].map(r=>r/100);
+  const base=[law("PIT_BASE")];
+  for(let i=1;i<th.length;i++) base[i]=Math.round((base[i-1]+rs[i-1]*(th[i]-th[i-1]))*100)/100;
+  return x => { if(x<=th[0]) return 0; let i=th.length-1; while(x<=th[i]) i--; return base[i]+rs[i]*(x-th[i]); };
+}
+function curPIT(x){ const t=law("PIT_THRESH"); return x<=t?0:law("PIT_BASE")+law("PIT_RATE")*(x-t); }
+function r4Engine(st){
+  const f=r4Schedule(st); let tot=0;
+  for(const [cls,n,ti,tb,bb,ta] of D.income_y1){ if(!n) continue; const m=ti/n; const cr=(tb+bb)?ta/(tb+bb):0; tot+=(f(m)-curPIT(m))*n*cr; }
+  return tot;
+}
+let _cal=null;
+function r4Cal(){ if(_cal===null){ _cal = law("LBO_T3_TGT")/r4Engine({r4a:3.75,r4b:5,r4c:7.5,r4d:10}); } return _cal; }
+let _baseA=null, _adm=null;
+function baseA(){ if(_baseA===null){ _baseA=0;_adm=0; for(const [adm,st,lo] of D.districts){ _baseA+=adm*(st+lo); _adm+=adm; } } return _baseA; }
+function ADM(){ baseA(); return _adm; }
+
+function countyRows(){ return D.counties.filter(c=>c[1]==="county" && c[2]>0); }
+function r7Detail(st, onlyCounty){
+  const t=st.r7/100; let legal=0, beyond=0, n=0, nb=0;
+  for(const [name,type,rate,dist] of countyRows()){
+    if(onlyCounty && name.toUpperCase()!==onlyCounty.toUpperCase()) continue;
+    const base=dist/rate, cap=Math.max(law("CNTY_CAP_021")+law("CNTY_CAP_026"),rate);
+    const l=Math.max(0,Math.min(t,cap)-rate), b=Math.max(0,t-cap);
+    legal+=l*base; beyond+=b*base; if(l>0) n++; if(b>0) nb++;
+    if(onlyCounty) return {rate, cap, l, b};
+  }
+  return {legal, beyond, n, nb};
+}
+
+function compute(st){
+  const B1=prm("B1"), B2=prm("B2"), B3=prm("B3");
+  const ty27 = st.pa==="t";
+  const Tall = ty27?B2:B1, Fsum = ty27?prm("B4b"):prm("B4"), scale = ty27?B2/B1:1;
+  const scope = (ty27 && st.sc==="a") ? "r" : st.sc;
+  const Bg={}, Fg={}, L={};
+  for(const t of TYPES){
+    let v = prm(t.b)*scale;
+    if(scope==="s" && t.k!=="sch") v=0;
+    if(scope==="a") v += B3*prm(t.b)/B1;
+    Bg[t.k]=v;
+  }
+  const keepF = scope==="a" || st.fs==="k";
+  let T = scope==="r" ? Tall : scope==="s" ? Bg.sch : B1+B3;
+  let F = 0;
+  for(const t of TYPES){ Fg[t.k] = keepF?0: (scope==="a"?0: prm(t.b)*scale*Fsum/Tall*(Bg[t.k]>0?1:0)); L[t.k]=Bg[t.k]-Fg[t.k]; }
+  if(!keepF) F = scope==="r" ? Fsum : Fg.sch;
+  // school cut
+  const baseVals = {B:prm("B18"), C:prm("B5")*scale, A:baseA()};
+  const cutReq = st.x/100*baseVals[st.sb];
+  const C = Math.min(cutReq, L.sch);
+  const cutExcess = cutReq - C;
+  // non-school funding levels
+  const N={}; let NSred=0; const nsRed={};
+  N.sch = L.sch - C;
+  for(const t of NS){ const f=st["f"+t.k]/100; N[t.k]=L[t.k]*f; nsRed[t.k]=L[t.k]*(1-f); NSred+=nsRed[t.k]; }
+  // redirect
+  const Rfull = st.rd ? prm("B10")*(scope==="s"? prm("B5")/B1 : 1) : 0;
+  const Rcap = Math.max(0, T-F-C-NSred);
+  const R = Math.min(Rfull, Rcap);
+  const G = T - F - R - C - NSred;
+  const Gnoredir = T - F - C - NSred;
+  const Gredir = T - F - C - NSred - Math.min(prm("B10")*(scope==="s"? prm("B5")/B1 : 1), Rcap);
+  // yields
+  const perS = (st.ba==="g"?prm("B12g"):prm("B12"))/law("SALES_RATE")/100;   // per point
+  const perI = (st.ba==="g"?prm("B14b"):prm("B14b")/prm("B14share"))/law("PIT_RATE")/100;
+  const perC = prm("B16")/law("CAT_RATE")/100;   // per percentage point
+  const bs=st.bs/100, bi=st.bi/100, bc=st.bc/100;
+  const en = {r1:!ty27, r3:ty27, r4:ty27, r5:!ty27, r6:!ty27, r7:!ty27, r8:!ty27, r9:true};
+  const y = {};
+  y.r1 = en.r1 ? st.r1*perS*(1-bs) : 0;
+  y.r3 = en.r3 ? st.r3*perI*(1-bi) : 0;
+  const r4raw = st.r4 ? r4Engine(st) : 0;
+  y.r4 = en.r4 && st.r4 ? r4raw*(st.r4m==="c"?r4Cal():1)*(1-bi) : 0;
+  y.r5 = en.r5 ? st.r5*perC*(1-bc) : 0;
+  const Ffrac = keepF ? 0 : (scope==="r" ? Fsum/Tall : scope==="s" ? Fsum/Tall : 0);
+  const r6gross = en.r6 ? st.r6/100*prm("B11b")*(scope==="s"? prm("B5")/B1 : 1) : 0;
+  const Fret = r6gross*Ffrac;            // fixed-sum share that stays on retained Class II property
+  y.r6 = r6gross - Fret;
+  const r7d = r7Detail(st);
+  y.r7 = en.r7 && scope!=="s" ? (r7d.legal + (st.r7l? r7d.beyond:0))*st.r7a/100*(1-bs) : 0;
+  let r8base=0; for(const r of D.school_income_tax) r8base+=r[3];
+  y.r8 = en.r8 ? st.r8/100*r8base*st.r8a/100*(1-bi) : 0;
+  y.r9 = Math.max(0, st.r9*1e6);
+  const V = y.r1+y.r3+y.r4+y.r5+y.r6+y.r7+y.r8, U = y.r9;
+  // routing
+  const local={}; for(const t of TYPES) local[t.k]=0;
+  const bsum = TYPES.reduce((a,t)=>a+Bg[t.k],0);
+  for(const t of TYPES) local[t.k] += bsum? y.r6*Bg[t.k]/bsum : 0;
+  local.cty += y.r7; local.sch += y.r8;
+  let Spool = y.r1+y.r3+y.r4+y.r5+R;
+  if(st.r9t==="st") Spool += U; else if(local[st.r9t]!==undefined) local[st.r9t]+=U;
+  const rem={}; let remSum=0;
+  for(const t of TYPES){ rem[t.k] = st.ro==="c" ? N[t.k] : Math.max(0,N[t.k]-local[t.k]); remSum+=rem[t.k]; }
+  const stateTo={}, gap={}; let shortN=0, shortList=[];
+  for(const t of TYPES){
+    stateTo[t.k] = remSum>0 ? Spool*rem[t.k]/remSum : 0;
+    gap[t.k] = N[t.k] - local[t.k] - stateTo[t.k];
+    if(Bg[t.k]>0 && gap[t.k]>1){ shortN++; shortList.push(t.name); }
+  }
+  const unrouted = remSum>0 ? 0 : Spool;
+  const bal = V + U - G;
+  const applied = Math.min(V+U, G), shortfall = Math.max(0, G-V-U), surplus = Math.max(0, V+U-G);
+  const appliedV = Math.min(V, G), appliedU = applied - appliedV;
+  const reduced = st.x>0 || NS.some(t=>st["f"+t.k]<100 && Bg[t.k]>0);
+  const replaced = bal >= -1 && shortN===0;
+  const ledger = [
+    ["Fixed-sum levies shifted to utility TPP", F - Fret],
+    ["Fixed-sum levies staying on retained Class II property", Fret],
+    ["State reimbursement redirected to replacement aid", R],
+    ["School spending reduction applied", C],
+    ["Non-school funding not replaced", NSred],
+    ["Verified lever revenue applied", appliedV],
+    ["User-entered revenue applied (unverified)", appliedU],
+    ["Remaining shortfall", shortfall]];
+  const ledgerSum = ledger.reduce((a,r)=>a+r[1],0);
+  // equivalents
+  const salesOnly = !ty27 ? law("SALES_RATE")*100 + st.r1 + Math.max(0,-bal)/(perS*(1-bs)) : null;
+  const incomeOnly = ty27 ? law("PIT_RATE")*100 + st.r3 + Math.max(0,-bal)/(perI*(1-bi)) : null;
+  return {ty27, scope, T, Tall, Fsum, F, Fret, Fg, Bg, L, N, C, cutReq, cutExcess, baseVals, NSred, nsRed, R, Rfull, G, Gnoredir, Gredir,
+    perS, perI, perC, y, en, V, U, local, Spool, rem, stateTo, gap, shortN, shortList, unrouted, bal, applied, appliedV, appliedU,
+    shortfall, surplus, reduced, replaced, ledger, ledgerSum, salesOnly, incomeOnly, r4raw, r7d, r8base, scale, keepF, Ffrac};
+}
+
+/* ---------- state <-> URL ---------- */
+function encode(st){
+  const parts=["m_"+MODEL,"d_"+dataVersion];
+  for(const k of Object.keys(DEF)) if(st[k]!==DEF[k]) parts.push(k+"_"+st[k]);
+  return parts.join("~");
+}
+function decode(tok){
+  tok = String(tok||"").trim(); const h=tok.indexOf("#"); if(h>=0) tok=tok.slice(h+1);
+  const out={...DEF}; let m=null,d=null;
+  for(const p of tok.split("~")){
+    const i=p.indexOf("_"); if(i<1) continue; const k=p.slice(0,i), v=p.slice(i+1);
+    if(k==="m"){m=v;continue} if(k==="d"){d=v;continue}
+    if(!(k in DEF)) continue;
+    out[k] = typeof DEF[k]==="number" ? (isFinite(+v)?+v:DEF[k]) : v;
+  }
+  return {st:out, m, d};
+}
+function clampState(st){
+  const c=(k,lo,hi)=>{st[k]=Math.min(hi,Math.max(lo,Number(st[k])||0))};
+  c("x",0,50); for(const t of NS) c("f"+t.k,50,100);
+  c("r1",0,15); c("r3",0,10); c("r5",0,2); c("r6",0,100); c("r7",0,2.5); c("r7a",0,100); c("r8",0,3); c("r8a",0,100); c("r9",0,1e6);
+  for(const k of ["r4a","r4b","r4c","r4d"]) c(k,2.75,15);
+  c("bs",0,25); c("bi",0,25); c("bc",0,25);
+  st.rd = st.rd?1:0; st.r4=st.r4?1:0; st.r7l=st.r7l?1:0;
+  if(!["b","t"].includes(st.pa)) st.pa="b"; if(!["a","g"].includes(st.ba)) st.ba="a";
+  if(!["r","s","a"].includes(st.sc)) st.sc="r"; if(!["s","k"].includes(st.fs)) st.fs="s";
+  if(!["A","B","C"].includes(st.sb)) st.sb="B"; if(!["a","c"].includes(st.r4m)) st.r4m="a";
+  if(!["l","c"].includes(st.ro)) st.ro="l"; if(!["st",...TYPES.map(t=>t.k)].includes(st.r9t)) st.r9t="st";
+  if(st.pa==="t" && st.sc==="a") st.sc="r";
+  return st;
+}
+
+/* ---------- UI construction ---------- */
+function slider(id,label,min,max,step,unit,help){
+  return `<div class="ctl"><div class="lab"><label for="${id}">${label}</label><span class="num" id="${id}_o"></span></div>
+  <div class="pair"><input type="range" id="${id}" min="${min}" max="${max}" step="${step}"><input type="number" id="${id}_n" min="${min}" max="${max}" step="${step}" aria-label="${esc(label)} (${unit})"></div>${help?`<p class="small muted">${help}</p>`:""}</div>`;
+}
+const TBD = "";
+function buildLevers(){
+  const L = [
+    {id:"r1", t:"State sales tax rate", payer:"Consumers (retailers remit)", coll:"State",
+      body: slider("r1","Points added to the 5.75% state rate",0,15,0.01,"points"),
+      src:"Yield base: FY 2025 state sales and use tax, all funds $14.27B (ODT Annual Report); GRF $14.02B (LBO)."},
+    {id:"r3", t:"Income tax, flat add-on", payer:"Income-tax filers", coll:"State",
+      body: slider("r3","Points added to the 2.75% rate",0,10,0.01,"points")+`<p class="small muted">TY 2027 collections fall half in FY 2028 and half in FY 2029. Business income stays at 3%.</p>`,
+      src:"Yield base: LBO's FY 2028 personal income tax, GRF, $10.70B (R-136-1958), divided by the FY 2025 GRF share 0.952 for all funds. That share is applied to a projection year; it is not the statutory distribution."},
+    {id:"r4", t:"Income tax, added brackets", payer:"Income-tax filers", coll:"State",
+      body:`<label class="check"><input type="checkbox" id="r4"><span>Add brackets above $100,000 (LBO Table 3 rates to start)</span></label>
+        <div class="grid2" style="gap:8px">
+          <div class="ctl"><label class="small" for="r4a">Rate $100,001–$250,000 (%)</label><input type="number" id="r4a" min="2.75" max="15" step="0.05"></div>
+          <div class="ctl"><label class="small" for="r4b">Rate $250,001–$500,000 (%)</label><input type="number" id="r4b" min="2.75" max="15" step="0.05"></div>
+          <div class="ctl"><label class="small" for="r4c">Rate $500,001–$1,000,000 (%)</label><input type="number" id="r4c" min="2.75" max="15" step="0.05"></div>
+          <div class="ctl"><label class="small" for="r4d">Rate over $1,000,000 (%)</label><input type="number" id="r4d" min="2.75" max="15" step="0.05"></div>
+        </div>
+        <div class="seg" role="radiogroup" aria-label="R4 estimate mode">
+          <label><input type="radio" name="r4m" value="a" id="r4m_a">ODT-table estimate: approximate</label>
+          <label><input type="radio" name="r4m" value="c" id="r4m_c">LBO-calibrated</label>
+        </div>
+        <p class="small" id="r4cmp"></p>`,
+      src:"Yield base: ODT Table Y-1, TY 2024 returns by income class, using each class's mean income and its own credit ratio. Class averages cannot match a return-level estimate."},
+    {id:"r5", t:"Commercial activity tax (CAT)", payer:"Businesses over $6 million in Ohio receipts", coll:"State",
+      body: slider("r5","Points added to the 0.26% CAT rate",0,2,0.01,"points"),
+      src:"Yield base: FY 2025 CAT collections, all funds, $2.26B (ODT Annual Report): $0.869B per 0.1 point. CAT is not split by fund on this page."},
+    {id:"r6", t:"Keep the Class II real property tax", payer:"Commercial, industrial and mineral property owners", coll:"Local",
+      body: slider("r6","Share of Class II taxes kept",0,100,1,"%")+`<p class="small muted">Counted net of the fixed-sum share, which would stay on Class II property rather than shift to utilities. Revenue stays with the governments that levy it.</p>`,
+      src:"Yield base: TY 2024 Class II real property taxes charged, $4.74B (ODT). Taxable value already excludes abated value, so no abatement adjustment applies."},
+    {id:"r7", t:"County permissive sales tax", payer:"Consumers (retailers remit)", coll:"Local: counties",
+      body: slider("r7","Raise each county's rate to (0 = off)",0,2.5,0.05,"%")+slider("r7a","Share of eligible counties that adopt",0,100,1,"%")+
+        `<label class="check small"><input type="checkbox" id="r7l"><span>Include amounts above a county's legal cap (would require new law)</span></label><p class="small" id="r7flag"></p>`,
+      src:"Yield base: CY 2025 county distributions and rates (ODT S-3); each county's base is its distributions divided by its rate. Cap: 1.5% under ORC 5739.021 and 5739.026, or the county's current rate if higher (Coshocton levies 2.0%). Transit authority taxes are left as they are."},
+    {id:"r8", t:"School-district income tax", payer:"Income-tax filers in the district", coll:"Local: schools",
+      body: slider("r8","Rate added in districts with a published base",0,3,0.05,"%")+slider("r8a","Share of those districts that adopt",0,100,1,"%")+`<p class="small" id="r8note"></p>`,
+      src:"Yield base: ODT SD-5, TY 2023 school-district income tax base for the districts that levied one. Districts without that tax have no published base. Each rate needs voter approval (ORC Chapter 5748)."},
+    {id:"r9", t:"Your own revenue assumption", payer:"You choose", coll:"You choose",
+      body:`<div class="ctl"><label class="small" for="r9">Annual amount, $ millions</label><input type="number" id="r9" min="0" step="1"></div>
+        <div class="ctl"><label class="small" for="r9t">Goes to</label><select id="r9t"><option value="st">Shared like state revenue</option>${TYPES.map(t=>`<option value="${t.k}">${esc(t.name)} only</option>`).join("")}</select></div>
+        <p class="flag">Your assumption, not verified by OCG. Kept on its own line in the meter.</p>`,
+      src:"Covers anything without a primary-source yield base, such as severance-tax increases, sales tax on services, or growth offsets."}];
+  el("levers").innerHTML = L.map(l=>`<div class="card" id="card_${l.id}">
+    <div class="hd"><span class="id">${l.id.toUpperCase()}</span><span class="tag">${esc(l.coll)}</span></div>
+    <h3>${esc(l.t)}</h3>
+    <p class="small">Remitted by: ${esc(l.payer)}</p>
+    ${l.body}
+    <p class="yield" id="y_${l.id}"></p>
+    <p class="why" id="dis_${l.id}" hidden></p>
+    <p class="small muted">${esc(l.src)}</p>
+    ${l.id!=="r9"?TBD:""}
+  </div>`).join("");
+  el("erosion").innerHTML =
+    `<div>${slider("bs","Sales tax base, β<sub>s</sub>",0,25,1,"%")}<p class="quote">OBM: "Such astronomical increases would drive citizens and businesses to tax avoidance, pushing consumer spending out of state especially in border counties." (OBM memo, p. 2)</p></div>`+
+    `<div>${slider("bi","Income tax base, β<sub>i</sub>",0,25,1,"%")}<p class="quote">LBO assumes no change in the income tax base "given the lack of a reliable basis" for estimating one. (R-136-1958)</p></div>`+
+    `<div>${slider("bc","CAT base, β<sub>c</sub>",0,25,1,"%")}<p class="small muted">No source states a figure for CAT.</p></div>`;
+  el("nsSliders").innerHTML = NS.map((t,i)=>slider("f"+t.k,`Replace 100% of ${["county","township","municipal","special district"][i]} property tax`,50,100,1,"%")).join("");
+}
+function buildPresets(){
+  const P=[["sales","Sales tax only"],["income","Income tax only (TY 2027 path)"],["school","School levies only"],["c2","Class II retained"],["local","Local-option heavy"]];
+  el("presets").innerHTML = P.map(([k,t])=>`<button class="btn" data-preset="${k}">${t}</button>`).join("");
+  el("presets").addEventListener("click",e=>{const b=e.target.closest("[data-preset]"); if(b) applyPreset(b.dataset.preset);});
+}
+function applyPreset(k){
+  const keep = {x:S.x,sb:S.sb,fcty:S.fcty,ftwp:S.ftwp,fmun:S.fmun,fspd:S.fspd,ba:S.ba,fs:S.fs,rd:S.rd,ro:S.ro,bs:S.bs,bi:S.bi,bc:S.bc};
+  S = {...DEF, ...keep};
+  if(k==="income"){ S.pa="t"; }
+  else { S.pa="b"; }
+  if(k==="school") S.sc="s";
+  if(k==="c2") S.r6=100;
+  if(k==="local"){ S.r7=1.5; S.r7a=100; S.r8=1; S.r8a=100; }
+  const c=compute(S);
+  if(S.pa==="t"){ S.r3 = Math.ceil(Math.max(0,-c.bal)/(c.perI*(1-S.bi/100))*100)/100; }
+  else { S.r1 = Math.ceil(Math.max(0,-c.bal)/(c.perS*(1-S.bs/100))*100)/100; }
+  clampState(S); syncInputs(); render();
+}
+
+/* ---------- binding ---------- */
+const NUMS = ["x","fcty","ftwp","fmun","fspd","r1","r3","r5","r6","r7","r7a","r8","r8a","bs","bi","bc"];
+function bindAll(){
+  for(const k of NUMS){
+    const r=el(k), n=el(k+"_n");
+    r.addEventListener("input",()=>{S[k]=+r.value; n.value=r.value; render();});
+    n.addEventListener("change",()=>{S[k]=+n.value; clampState(S); r.value=S[k]; n.value=S[k]; render();});
+  }
+  for(const name of ["path","basis","scope","fixed","r4m"]){
+    document.querySelectorAll(`input[name=${name}]`).forEach(i=>i.addEventListener("change",()=>{
+      const key={path:"pa",basis:"ba",scope:"sc",fixed:"fs",r4m:"r4m"}[name]; S[key]=i.value; clampState(S); syncInputs(); render();}));
+  }
+  el("redirect").addEventListener("change",e=>{S.rd=e.target.checked?1:0; render();});
+  el("r4").addEventListener("change",e=>{S.r4=e.target.checked?1:0; render();});
+  el("r7l").addEventListener("change",e=>{S.r7l=e.target.checked?1:0; render();});
+  for(const k of ["r4a","r4b","r4c","r4d"]) el(k).addEventListener("change",e=>{S[k]=+e.target.value; clampState(S); e.target.value=S[k]; render();});
+  el("r9").addEventListener("input",e=>{S.r9=Math.max(0,+e.target.value||0); render();});
+  el("r9t").addEventListener("change",e=>{S.r9t=e.target.value; render();});
+  el("sbase").addEventListener("change",e=>{S.sb=e.target.value; render();});
+  el("route").addEventListener("change",e=>{S.ro=e.target.value; render();});
+  // household
+  document.querySelectorAll("#sec-hh input, #sec-hh select").forEach(i=>i.addEventListener(i.tagName==="SELECT"||i.type==="radio"||i.type==="checkbox"?"change":"input",()=>{ if(i.id==="hCounty") fillTD(); renderHH(compute(S)); }));
+  el("copyLink").addEventListener("click",()=>{ const t=el("shareTxt").value;
+    const ok=()=>{el("shareMsg").textContent="Link copied.";}, fail=()=>{el("shareTxt").select(); el("shareMsg").textContent="Select the link above and copy it.";};
+    try{ navigator.clipboard.writeText(t).then(ok,fail);}catch(e){fail();} });
+  el("loadBtn").addEventListener("click",()=>openScenario(el("loadTxt").value, true));
+  el("resetBtn").addEventListener("click",()=>{ S={...DEF}; if(dataVersion!==CURRENT_DATA) switchData(CURRENT_DATA); else {syncInputs(); render();} el("shareMsg").textContent="Reset to the opening state."; });
+}
+function syncInputs(){
+  for(const k of NUMS){ el(k).value=S[k]; el(k+"_n").value=S[k]; }
+  for(const [name,key] of [["path","pa"],["basis","ba"],["scope","sc"],["fixed","fs"],["r4m","r4m"]]){
+    const i=document.querySelector(`input[name=${name}][value="${S[key]}"]`); if(i) i.checked=true; }
+  el("redirect").checked=!!S.rd; el("r4").checked=!!S.r4; el("r7l").checked=!!S.r7l;
+  for(const k of ["r4a","r4b","r4c","r4d"]) el(k).value=S[k];
+  el("r9").value=S.r9||""; el("r9t").value=S.r9t; el("sbase").value=S.sb; el("route").value=S.ro;
+}
+
+/* ---------- render ---------- */
+function render(){
+  const c = compute(S);
+  const usePts = c.ty27 ? c.perI : c.perS;
+  // meter
+  el("mReq").textContent=B(c.G); el("mVer").textContent=B(c.V); el("mUsr").textContent=B(c.U);
+  const mb=el("mBal"); mb.textContent=(c.bal>=0?"+":"")+B(c.bal); mb.className="v "+(c.bal>=-1?"pos":"neg");
+  const tot=Math.max(c.G,c.V+c.U,1);
+  el("barVer").style.width=(Math.min(c.V,c.G)/Math.max(c.G,1)*100)+"%";
+  el("barUsr").style.width=(Math.min(c.U,Math.max(0,c.G-c.V))/Math.max(c.G,1)*100)+"%";
+  let st="";
+  if(c.replaced){
+    if(c.reduced){
+      const lv=[]; if(S.x>0) lv.push(`school spending cut ${S.x}% of ${({B:"general-fund spending",C:"school property tax",A:"state plus local revenue"})[S.sb]}`);
+      for(const t of NS) if(S["f"+t.k]<100 && c.Bg[t.k]>0) lv.push(`${t.name.split(" (")[0].toLowerCase()} at ${S["f"+t.k]}%`);
+      st=`<span class="pill ok">Revenue replaced at the funding levels chosen</span><span>${esc(lv.join("; "))}. Lower funding levels mean less revenue for those governments, not lower cost.</span>`;
+    } else st=`<span class="pill ok">Revenue replaced</span>`;
+  } else {
+    st=`<span class="pill short">${c.bal<-1?"Short "+B(-c.bal):"Statewide total covered"}</span><span>${c.shortN} of ${TYPES.filter(t=>c.Bg[t.k]>0).length} government types still short</span>`;
+  }
+  if(c.U>0){ const dep=Math.min(c.U,Math.max(0,c.G-c.V)); st+=`<span class="pill note">${B(dep)} of the coverage depends on user-entered revenue</span>`; }
+  if(!S.rd) st+=`<span class="muted">With state reimbursements redirected: requirement ${B(c.Gredir)}</span>`;
+  else st+=`<span class="muted">Without the redirect: requirement ${B(c.Gnoredir)}</span>`;
+  if(c.ty27) st+=`<span class="muted">Flat income rate if income tax covered the rest: ${PCT(c.incomeOnly)}</span>`;
+  else st+=`<span class="muted">State sales rate if sales tax covered the rest: ${PCT(c.salesOnly)}</span>`;
+  el("mStatus").innerHTML=st;
+  el("meterLive").textContent=`Requirement ${B(c.G)}. Verified revenue ${B(c.V)}. Balance ${B(c.bal)}. ${c.replaced?"Revenue replaced":c.shortN+" government types short"}.`;
+
+  // period
+  el("pairLabel").textContent = D.pairing.find(p=>p.requirement_period===(c.ty27?"TY 2027":"TY 2024"))["label shown on page"];
+  document.querySelector('input[name=scope][value="a"]').disabled = c.ty27;
+  // scope table
+  el("scopeNote").textContent = c.scope==="a" ? "Wider than the amendment: adds public-utility tangible personal property taxes (B3). With nothing left to shift to, fixed-sum levies stay in the requirement. TPP is attributed to government types in proportion to real property taxes (a method)."
+    : c.scope==="s" ? "School district and JVSD levies only. Other governments keep their property taxes." : (c.ty27?"LBO's TY 2027 projection of real property taxes charged, $23.17B. Government-type amounts are TY 2024 shares applied to it (a method).":"The amendment's scope: all real property taxes charged, TY 2024.");
+  let rows=`<tr><th>Government type</th><th>Taxes charged in scope</th><th>Fixed-sum share</th><th>Lost revenue</th></tr>`;
+  for(const t of TYPES) rows+=`<tr><td>${esc(t.name)}</td><td>${B(c.Bg[t.k])}</td><td>${c.Fg[t.k]?"−"+B(c.Fg[t.k]):"—"}</td><td>${B(c.L[t.k])}</td></tr>`;
+  rows+=`<tr><td><b>Total</b></td><td><b>${B(c.T)}</b></td><td><b>${c.F?"−"+B(c.F):"—"}</b></td><td><b>${B(c.T-c.F)}</b></td></tr>`;
+  el("tblLost").innerHTML=rows;
+  // obligations
+  el("fixedNote").innerHTML = c.scope==="a" ? "All-property scope: nothing is left to shift to, so fixed-sum levies stay in the requirement."
+    : c.keepF ? "Fixed-sum levies stay in the requirement; the replacement mix must cover them." : `Subtracts ${B(c.F)}: LBO estimate, confirmed by LBO (Oct. 2026).`;
+  document.querySelectorAll("input[name=fixed]").forEach(i=>i.disabled=c.scope==="a");
+  el("b10txt").textContent=B(prm("B10"));
+  el("redirectNote").innerHTML = S.rd ? `On: subtracts ${B(c.R)}. Assumes the General Assembly appropriates the reimbursement savings to local replacement aid.${c.ty27?" Uses the TY 2024 amount on the TY 2027 path.":""}${c.scope==="s"?" School share attributed in proportion to taxes charged.":""}` : `Off. The requirement with the redirect on would be ${B(c.Gredir)}.`;
+  el("scaleLines").innerHTML = [
+    `FY 2027 formula local share: ${B(prm("B24"))} for traditional districts and ${M(prm("B25"))} for JVSDs (LBO). Repeal would raise the state share because the formula uses taxable value, but the formula after FY 2027 is not enacted. Neither subtracted nor added.`,
+    `TIF service payments in lieu of taxes charged, TY 2024: ${B(prm("B28"))} (outside B1). Whether they survive repeal is an open legal question.`,
+    `The TY 2024 baseline predates H.B. 186 and H.B. 335; their effects are not modeled in v1.0.`].map(s=>`<li>${s}</li>`).join("");
+  // spending
+  el("xOut").textContent = PCT(S.x,1);
+  el("sbaseNote").textContent = S.sb==="C" ? "Base C answers a different question: replace less than all of the school levy, rather than spend less in total." : S.sb==="A" ? "Derived from ODEW district data (enrolled ADM × state and local revenue per pupil, 606 districts); not a published ODEW total. Federal funds and fees are on no base." : "Federal funds and fees are on no base: a state-ordered cut cannot reduce them, and they do not replace property tax.";
+  let xr=`<div>Base: ${B(c.baseVals[S.sb])}. Removed from the requirement: <b>${B(c.C)}</b>, the equivalent of ${(c.C/usePts).toFixed(2)} ${c.ty27?"income-tax":"sales-tax"} points.</div>
+    <div>Per pupil: ${USD(c.cutReq/ADM())} (cut dollars ÷ ${Math.round(ADM()).toLocaleString()} enrolled ADM).</div>`;
+  if(c.cutExcess>1) xr+=`<div class="flag">${B(c.cutExcess)} of the cut exceeds the school share of lost revenue. It is booked as reduced state foundation spending and does not lower the requirement.</div>`;
+  el("xRead").innerHTML=xr;
+  document.querySelectorAll("#schoolCard input, #schoolCard select").forEach(i=>i.disabled=false);
+  for(const t of NS){ el("f"+t.k+"_o").textContent = S["f"+t.k]+"%"; const off=c.Bg[t.k]===0; el("f"+t.k).disabled=off; el("f"+t.k+"_n").disabled=off; }
+  el("nsSliders").querySelectorAll(".lab label").forEach((lab,i)=>{ const t=NS[i]; lab.textContent=`Replace ${S["f"+t.k]}% of ${["county","township","municipal","special district"][i]} property tax`; });
+  el("nsRead").innerHTML = c.NSred>0 ? `Not replaced: ${NS.filter(t=>c.nsRed[t.k]>0).map(t=>`${t.name.split(" (")[0]} ${money(c.nsRed[t.k])}`).join("; ")}. Combined ${B(c.NSred)}, the equivalent of ${(c.NSred/usePts).toFixed(2)} ${c.ty27?"income-tax":"sales-tax"} points.` : (c.scope==="s"?"Not applicable in school-levies scope.":"All four types at 100%: nothing removed.");
+  // levers
+  const dis = {
+    base:"Disabled in base-year mode. No flat-rate income tax yield exists for the same period as the TY 2024 requirement: FY 2025 collections came under the older two-bracket schedule. Switch to the LBO TY 2027 path to use it.",
+    ty27:"Disabled on the TY 2027 path. No FY 2028 yield is published for this lever; LBO pairs a TY 2027 repeal only with FY 2028 income tax."};
+  for(const id of ["r1","r3","r4","r5","r6","r7","r8","r9"]){
+    const on=c.en[id]; const card=el("card_"+id); card.classList.toggle("off",!on);
+    card.querySelectorAll("input,select").forEach(i=>i.disabled=!on);
+    const d=el("dis_"+id); d.hidden=on; if(!on) d.textContent = (id==="r3"||id==="r4")?dis.base:dis.ty27;
+  }
+  if(c.scope==="s"){ el("card_r7").classList.add("off"); el("card_r7").querySelectorAll("input").forEach(i=>i.disabled=true); el("dis_r7").hidden=false; el("dis_r7").textContent="Not used in school-levies scope: county sales tax goes to counties, which keep their property taxes in this scope."; }
+  for(const k of NUMS) if(el(k+"_o") && !k.startsWith("f") && k!=="x") el(k+"_o").textContent = ["r6","r7a","r8a","bs","bi","bc"].includes(k)? S[k]+"%" : (k==="r7"? (S[k]?PCT(S[k],2):"off") : (k==="r8"? PCT(S[k],2) : "+"+S[k].toFixed(2)+" pts"));
+  el("r1_o").textContent = `+${S.r1.toFixed(2)} pts → ${PCT(5.75+S.r1)}`;
+  el("r3_o").textContent = `+${S.r3.toFixed(2)} pts → ${PCT(2.75+S.r3)}`;
+  el("r5_o").textContent = `+${S.r5.toFixed(2)} pts → ${PCT(0.26+S.r5)}`;
+  el("y_r1").textContent = `Yield ${B(c.y.r1)} · ${B(c.perS)} per point (${S.ba==="g"?"GRF":"all funds"})`;
+  el("y_r3").textContent = `Yield ${B(c.y.r3)} · ${B(c.perI)} per point (${S.ba==="g"?"GRF":"all funds"})`;
+  el("y_r4").textContent = `Yield ${B(c.y.r4)}`;
+  const calTxt = S.r4m==="c" ? "LBO-calibrated: scaled to reproduce LBO's published $3.65 billion; not an ODT calculation." : "ODT-table estimate: approximate.";
+  el("r4cmp").innerHTML = `${calTxt} With these rates: ${B(c.r4raw)} on TY 2024 returns (approximate), ${B(c.r4raw*r4Cal())} calibrated. LBO's estimate for Table 3's rates: ${B(law("LBO_T3_TGT"))}, FY 2028. Calibration factor ${r4Cal().toFixed(4)}. Not adjusted for the GRF/all-funds toggle. Combined with R3, the two are added without interaction.`;
+  el("y_r5").textContent = `Yield ${B(c.y.r5)} · ${B(c.perC/10)} per 0.1 point`;
+  el("y_r6").textContent = `Yield ${B(c.y.r6)}${c.Fret?` (plus ${B(c.Fret)} of fixed-sum levies that stay on this property)`:""}`;
+  el("y_r7").textContent = `Yield ${B(c.y.r7)}`;
+  const fullR7 = S.r7>0 ? (c.r7d.legal+c.r7d.beyond) : 0;
+  el("r7flag").innerHTML = S.r7>0 ? `${c.r7d.n} counties have room under their cap at this rate.${c.r7d.nb?` <span class="flag">${c.r7d.nb} counties would pass their cap: requires new law (see White Paper No. 009).</span>`:""} At 100% adoption: ${B(c.r7d.legal)} within caps${c.r7d.beyond?`, ${B(c.r7d.beyond)} beyond`:""}.` : "Raising every county below 1.5% to 1.5% yields about $0.86B on CY 2025 distributions.";
+  el("y_r8").textContent = `Yield ${B(c.y.r8)}`;
+  el("r8note").innerHTML = `Base covers the ${new Set(D.school_income_tax.map(r=>r[4])).size} districts that levied a school income tax in TY 2023 (${B(c.r8base)} combined base). ${S.r8>0?'<span class="flag">Each district needs voter approval under ORC Chapter 5748.</span>':""}`;
+  el("y_r9").textContent = `Entered ${B(c.y.r9)} · unverified`;
+  for(const k of ["bs","bi","bc"]) el(k+"_o").textContent=S[k]+"%";
+  // coverage
+  el("routeRule").innerHTML = `<b>Rule in force:</b> ${S.ro==="l"?"state-collected revenue (state levers, redirected reimbursements, and user revenue marked as shared) goes to each type in proportion to its loss still remaining after spending reductions and after local revenue, which stays with its collector.":"state-collected revenue goes to each type in proportion to its loss after spending reductions. Local revenue stays with its collector and is not considered when sharing."} A statewide surplus never covers one type's gap.`;
+  let cv=`<tr><th>Government type</th><th>Lost revenue</th><th>Funding level</th><th>To replace</th><th>Local revenue</th><th>State-routed</th><th>Gap (−) or surplus</th><th>Status</th></tr>`;
+  for(const t of TYPES){
+    if(c.Bg[t.k]===0){ cv+=`<tr><td>${esc(t.name)}</td><td colspan="7" class="l muted">Not in scope: keeps its property taxes.</td></tr>`; continue; }
+    const g=-c.gap[t.k], short=c.gap[t.k]>1;
+    const lvl = t.k==="sch" ? (c.C>0?`${PCT(c.N.sch/c.L.sch*100,1)} after cut`:"100%") : S["f"+t.k]+"%";
+    cv+=`<tr class="${short?"gaprow":""}"><td>${esc(t.name)}</td><td>${B(c.L[t.k])}</td><td>${lvl}</td><td>${B(c.N[t.k])}</td><td>${B(c.local[t.k])}</td><td>${B(c.stateTo[t.k])}</td><td>${(g>=0?"+":"")+B(g)}</td><td class="l">${short?`<span class="pill short">Short ${B(c.gap[t.k])}</span>`:`<span class="pill ok">Covered</span>`}</td></tr>`;
+  }
+  el("tblCov").innerHTML=cv;
+  el("covFoot").textContent = `Rows use LBO Table 1's by-type figures, which sum to $1 more than its total; the page does not adjust that dollar. Fixed-sum and Class II amounts are attributed to types in proportion to taxes charged (a method, not an LBO figure).${c.unrouted>0?` ${B(c.unrouted)} of state revenue has no remaining loss to go to.`:""}`;
+  // payers
+  const sf = c.scope==="s"? prm("B5")/prm("B1") : 1;
+  const before=[["Class I owners (residential and agricultural)",prm("B11a")*sf*c.scale],["Class II owners (commercial, industrial, mineral)",prm("B11b")*sf*c.scale]];
+  if(c.scope==="a") before.push(["Utility property owners (TPP, B3)",prm("B3")]);
+  const after=[
+    ["Consumers: state sales tax",c.y.r1],["Consumers: county sales tax",c.y.r7],["Income-tax filers: state",c.y.r3+c.y.r4],
+    ["Income-tax filers: school district",c.y.r8],["Businesses: CAT",c.y.r5],["Commercial and industrial owners: Class II kept",c.y.r6+c.Fret],
+    ["Utility property: fixed-sum shift",c.F-c.Fret,"red"],["State: reimbursements redirected",c.R,"red"],["Schools: spending reduced",c.C,"red"],
+    ["Other local governments: revenue not replaced",c.NSred,"red"],["User-entered revenue (unverified)",c.U,"red"],["Not yet covered",c.shortfall,"gap"]];
+  const mx=Math.max(c.T, c.T - c.shortfall + c.surplus + c.shortfall);
+  const payRow=(cls)=>([n,v,k])=>`<div class="pay ${cls} ${k||""}"><span>${esc(n)}</span><div class="track"><span style="width:${Math.max(0,v/mx*100)}%"></span></div><span class="v num">${B(v)}</span></div>`;
+  el("payBefore").innerHTML = before.map(payRow("before")).join("")+`<p class="small muted">Total ${B(c.T)}${c.ty27?" (TY 2024 class shares applied to the TY 2027 total)":""}.</p>`;
+  el("payAfter").innerHTML = after.filter(r=>r[1]>0.5||r[0]==="Not yet covered").map(payRow("")).join("")+(c.surplus>0?`<p class="small">Surplus beyond the requirement: ${B(c.surplus)}.</p>`:"")+`<p class="quote">Utility property: LBO says the fixed-sum shift "could essentially double the statewide tax burden to TPP owners."</p>`;
+  // OBM table
+  renderOBM();
+  renderHH(c);
+  renderDrawer(c);
+  // share
+  const tok=encode(S); el("shareTxt").value = (IN_FRAME? PUBLIC_URL : location.href.split("#")[0])+"#"+tok;
+  try{ history.replaceState(null,"","#"+tok); }catch(e){}
+  // R9 banner
+  const ban=el("r9Banner"); if(c.U>0){ ban.hidden=false; ban.textContent=`This scenario contains ${B(c.U)} in user-entered revenue not verified by Ohio Common Ground.`; } else ban.hidden=true;
+  window.__last = c;
+}
+
+function renderOBM(){
+  const a=prm("B12")/law("SALES_RATE")/100, g=prm("B12g")/law("SALES_RATE")/100, base=law("SALES_RATE")*100;
+  const rate=(T,p)=>PCT(base+T/p); const tgt=(r,p)=>B((r-base)*p);
+  const beta=(T,r,p)=> Math.max(0,1-T/((r-base)*p))*100;
+  const t20=prm("B23t"), t22=t20+2e9, t24=prm("B23g"), lo=prm("B23lo")*100, hi=prm("B23hi")*100;
+  el("tblObm").innerHTML = `<tr><th>Question</th><th>Answer at static yield, all funds [GRF basis]</th></tr>
+  <tr><td>What target does ${lo}–${hi}% imply with no erosion?</td><td>${tgt(lo,a)} to ${tgt(hi,a)} [${tgt(lo,g)} to ${tgt(hi,g)}]</td></tr>
+  <tr><td>OBM's stated "$20 billion or more"</td><td>${rate(t20,a)} at $20B [${rate(t20,g)}]. Reaching ${lo}% needs β<sub>s</sub> ≈ ${beta(t20,lo,a).toFixed(0)}%; ${hi}% needs ≈ ${beta(t20,hi,a).toFixed(0)}%, past the slider</td></tr>
+  <tr><td>One reading of OBM's wording: $20B plus the $2B the state already pays, about $22B (OBM does not state this sum)</td><td>${rate(t22,a)} [${rate(t22,g)}]</td></tr>
+  <tr><td>OBM's total, about $24B (real plus TPP)</td><td>${rate(t24,a)} [${rate(t24,g)}]. Reaching ${hi}% needs β<sub>s</sub> ≈ ${beta(t24,hi,a).toFixed(0)}%</td></tr>
+  <tr><td>Is OBM's range state-only or combined?</td><td>State: "state sales tax rates approaching 15–18 percent" (OBM memo, p. 2)</td></tr>`;
+}
+
+/* ---------- household ---------- */
+function fillCounties(){
+  const cs=countyRows().map(c=>c[0]).sort();
+  el("hCounty").innerHTML=`<option value="">Choose a county</option>`+cs.map(n=>`<option>${esc(n)}</option>`).join("");
+  fillTD();
+}
+function fillTD(){
+  const cn=el("hCounty").value.toUpperCase();
+  const tds=D.taxing_districts.map((r,i)=>[r,i]).filter(([r])=>r[0]===cn).sort((a,b)=>a[0][1].localeCompare(b[0][1]));
+  el("hTD").innerHTML = cn ? `<option value="">Choose your taxing district</option>`+tds.map(([r,i])=>`<option value="${i}">${esc(r[1])}</option>`).join("") : `<option value="">Choose a county first</option>`;
+  const sds=D.school_income_tax.filter(r=>r[0]===cn).sort((a,b)=>a[1].localeCompare(b[1]));
+  el("hSD").innerHTML = `<option value="">My district is not listed (no TY 2023 school income tax base)</option>`+sds.map(r=>`<option value="${esc(r[4])}">${esc(r[1])} (${r[2]==="earned"?"earned-income base":"traditional base"})</option>`).join("");
+}
+function exemption(agi){ if(agi>=500000) return 0; return agi<=40000?law("EX1"):agi<=80000?law("EX2"):law("EX3"); }
+function renderHH(c){
+  const own = el("ten_o").checked;
+  el("ownerIn").hidden=!own; el("renterIn").hidden=own; el("schShareCtl").hidden = c.scope!=="s";
+  const v=id=>{const x=el(id).value; return x===""?null:+x;};
+  const tdIdx=el("hTD").value, td = tdIdx!==""? D.taxing_districts[+tdIdx] : null;
+  const county=el("hCounty").value;
+  const notes=[];
+  // current property tax
+  let P=null, pNote="";
+  if(own){
+    if(v("hBill")!==null){ P=v("hBill"); pNote="your net bill"; }
+    else if(v("hVal")!==null && td){ const occ=el("hOcc").checked; const gross=v("hVal")*0.35*td[2]/1000; P=gross*(1-td[3]-(occ?td[4]:0));
+      pNote=`estimate: ${USD(v("hVal"))} × 35% × ${td[2].toFixed(2)} effective Class I mills, less ${(td[3]*100).toFixed(2)}%${occ?` and ${(td[4]*100).toFixed(2)}%`:""} rollbacks. The homestead exemption and other credits are not included; your bill is more accurate`; }
+  } else {
+    if(v("hRentTax")!==null) { P=v("hRentTax"); pNote="your figure for your unit"; }
+    else if(v("hBldg")!==null && v("hUnits")) { P=v("hBldg")/v("hUnits"); pNote=`building bill ${USD(v("hBldg"))} ÷ ${v("hUnits")} units`; }
+  }
+  // share removed
+  let remShare = 1;
+  if(c.scope==="s"){ const s=v("hSchShare"); remShare = s!==null? s/100 : prm("B5")/prm("B1"); notes.push(`School-levies scope: removes ${(remShare*100).toFixed(1)}% of the bill (${s!==null?"your figure":"statewide school share"}).`); }
+  if(!own && el("hFour").checked && S.r6>0 && c.en.r6){ remShare *= (1-S.r6/100); notes.push(`Four or more units is Class II property: ${S.r6}% of its tax is kept under R6.`); }
+  // income
+  const agi=v("hAGI"), ex=v("hEx")||0, biz=v("hBiz")||0;
+  let NB=null; if(agi!==null){ NB=Math.max(0, agi - ex*exemption(agi) - biz); }
+  el("nbOut").textContent = NB===null? "Enter Ohio AGI to compute nonbusiness taxable income." : `Nonbusiness taxable income: ${USD(NB)} (exemption ${USD(exemption(agi))} each, statute amount; the indexed TY 2026 amount replaces it when ODT publishes it). Business income stays at 3% and is not changed by these levers${el("hFS").value==="m"?"; business-income deduction $125,000 when married filing separately":"; business-income deduction up to $250,000"}.`;
+  let dInc=null;
+  if(NB!==null){ dInc = c.en.r3 ? S.r3/100*Math.max(0,NB-law("PIT_THRESH")) : 0;
+    if(c.en.r4 && S.r4){ const f=r4Schedule(S); dInc += f(NB)-curPIT(NB); } }
+  // school district income tax
+  let dSD=0; const sd=el("hSD").value;
+  if(c.en.r8 && S.r8>0 && sd && NB!==null){ dSD = S.r8/100*NB; notes.push("School-district income tax applied to nonbusiness taxable income, assuming your district adopts; an earned-income base would apply to wages and self-employment income only."); }
+  el("hSDctl").hidden = !(c.en.r8 && S.r8>0);
+  // sales
+  const spend=v("hSpend");
+  let cRate=null, cInc=0;
+  if(county){ const d=r7Detail(S, county); if(d){ cRate=d.rate; cInc = c.en.r7 && S.r7>0 ? (d.l + (S.r7l?d.b:0)) : 0; } }
+  const dSales = spend===null? null : spend*(S.r1/100 + cInc);
+  const cr = countyRows().map(r=>r[2]); const lo=Math.min(...cr)*100, hi=Math.max(...cr)*100;
+  const stRate = 5.75 + (c.en.r1?S.r1:0);
+  let html="";
+  const missing=[]; if(P===null) missing.push(own?"your net bill (or home value and taxing district)":"your building's bill and units, or your unit's figure"); if(NB===null && (c.en.r3||c.en.r4||c.en.r8)) missing.push("Ohio AGI"); if(spend===null && (c.en.r1||c.en.r7)) missing.push("taxable spending");
+  const services = `In this scenario, school districts receive ${pctCov(c,"sch")} of their lost property tax and other local governments ${pctCovNS(c)}.`;
+  const combo = `State sales rate ${PCT(stRate)}${cRate!==null?` + ${county} County ${PCT((cRate+cInc)*100)} = ${PCT(stRate+(cRate+cInc)*100)} combined`:""}. Across counties, combined rates range ${PCT(stRate+lo)} to ${PCT(stRate+hi)} (transit taxes not included).`;
+  const parts = (Prem)=> { const tot = -Prem + (dSales||0) + (dInc||0) + dSD; return tot; };
+  if(missing.length){
+    html=`<h3>Your estimated change in directly modeled annual taxes</h3><p class="muted">Enter ${missing.join(", ")} to see the result.</p>`;
+  } else if(!own && v("hPhi")===null){
+    const cols=[25,50,75,100].map(phi=>{ const Pr=P*phi/100*remShare; const t=parts(Pr); return `<div><div class="small muted">φ = ${phi}%</div><div class="big num">${(t>=0?"+":"")+USD(t)}</div></div>`;}).join("");
+    html=`<h3>Your estimated change in directly modeled annual taxes</h3><p class="small muted">You have not set φ, the share of the building's property tax passed through to your rent. The literature does not support a default, so the result is shown at four values, none preferred.</p><div class="phi">${cols}</div>`;
+  } else {
+    const phi = own?1:v("hPhi")/100; const Pr=P*phi*remShare; const t=parts(Pr);
+    html=`<h3>Your estimated change in directly modeled annual taxes</h3><div class="big num">${(t>=0?"+":"")+USD(t)} a year</div>`;
+  }
+  if(!missing.length){
+    const phiTxt = own? "" : (v("hPhi")===null? " × φ":` × φ ${v("hPhi")}%`);
+    html+=`<div class="tblwrap"><table><tr><th>Component</th><th>Annual change</th></tr>
+      <tr><td>Property tax removed (${esc(pNote)}${phiTxt})</td><td>${own||v("hPhi")!==null? "−"+USD(P*(own?1:v("hPhi")/100)*remShare) : "−"+USD(P*remShare)+" × φ"}</td></tr>
+      <tr><td>Sales tax: state +${S.r1.toFixed(2)} pts${cInc?`, county +${(cInc*100).toFixed(2)} pts`:""} on ${USD(spend||0)}</td><td>+${USD(dSales||0)}</td></tr>
+      <tr><td>State income tax${c.ty27?"":" (income levers disabled in base-year mode)"}${S.r4&&c.en.r4?"; brackets shown before credits":""}</td><td>+${USD(dInc||0)}</td></tr>
+      ${dSD?`<tr><td>School-district income tax</td><td>+${USD(dSD)}</td></tr>`:""}</table></div>`;
+  }
+  html+=`<p class="small"><b>Does not include price effects from business taxes, utility-bill effects from the fixed-sum shift, or changes in rent or home values.</b></p>
+    <p class="small"><b>${services}</b></p><p class="small muted">${combo}</p>`;
+  if(notes.length) html+=`<p class="small muted">${notes.join(" ")}</p>`;
+  const sw=[`Statewide: ${B(c.F-c.Fret)} of fixed-sum levies shifts onto utility property (B4; not the same as the ${B(prm("B3"))} in existing utility TPP taxes). LBO: the shift "could essentially double the statewide tax burden to TPP owners."`];
+  if(c.y.r5>0) sw.push(`The CAT increase raises ${B(c.y.r5)} from businesses over $6 million in Ohio receipts.`);
+  if(el("hBizOwner").checked) sw.push(`As a business owner, the CAT${S.r6>0?" and retained Class II tax":""} may reach you directly; this panel does not allocate them.`);
+  html+=`<p class="small muted">${sw.join(" ")}</p>`;
+  el("hhOut").innerHTML=html;
+}
+function pctCov(c,k){ if(c.Bg[k]===0) return "all"; const got=Math.min(c.N[k],c.local[k]+c.stateTo[k]); return PCT(got/c.L[k]*100,1); }
+function pctCovNS(c){ let L=0,got=0; for(const t of NS){ L+=c.L[t.k]; got+=Math.min(c.N[t.k],c.local[t.k]+c.stateTo[t.k]); } return L>0? PCT(got/L*100,1)+" of theirs" : "keep their property taxes"; }
+
+/* ---------- drawer ---------- */
+function renderDrawer(c){
+  if(!el("drawer").open){ el("drawerInner").dataset.stale="1"; return; }
+  const P=D.parameters;
+  const prow=Object.entries(P).map(([id,p])=>`<tr><td>${id}</td><td class="l">${esc(p.parameter)}</td><td>${p.value===null?"table":typeof p.value==="number"&&p.value>1000?USD(p.value):esc(p.value)}</td><td>${esc((p.period_type||"")+" "+(p.period||""))}</td><td>${esc(p.status)}</td><td class="l">${esc(p.publisher)}, ${esc(p.document)}${p.table_or_page?", "+esc(p.table_or_page):""}${p.url?` <a href="${esc(p.url)}" target="_blank" rel="noopener">link</a>`:""}</td><td class="l">${p.second_check_by?"checked":"<span class='tbd'>pending</span>"}</td></tr>`).join("");
+  const lrow=Object.values(D.law).map(r=>`<tr><td>${esc(r.rule_id)}</td><td class="l">${esc(r.rule)}</td><td>${r.value===null?"rule":esc(r.value)}</td><td class="l">${esc(r.source)}</td></tr>`).join("");
+  const inter=[["Scope total",c.T],["Fixed-sum amount (F)",c.F],["Redirect (R)",c.R],["School cut applied (C)",c.C],["School cut requested",c.cutReq],["Non-school funding not replaced",c.NSred],["Requirement G = total − F − R − C − non-school",c.G],
+    ["Sales yield per point",c.perS],["Income yield per point",c.perI],["CAT yield per point",c.perC],["R4 engine on TY 2024 returns",c.r4raw],["R4 calibration factor",r4Cal()],["R7 within caps at 100% adoption",c.r7d.legal],["R7 beyond caps",c.r7d.beyond],["R8 combined base",c.r8base],
+    ...Object.entries(c.y).map(([k,v])=>["Yield "+k.toUpperCase(),v]),["Verified revenue V",c.V],["User-entered U",c.U],["State pool routed",c.Spool],["Balance",c.bal],
+    ["Base A (ADM × state and local revenue per pupil)",baseA()],["Enrolled ADM",ADM()],["Base B per pupil (test 15)",prm("B18")/ADM()],["LSC average per-pupil spending (B19)",prm("B19")]]
+    .map(([n,v])=>`<tr><td class="l">${esc(n)}</td><td>${typeof v==="number"?(Math.abs(v)>=1000?USD(v):v.toFixed(4)):esc(v)}</td></tr>`).join("");
+  const led=c.ledger.map(([n,v])=>`<tr><td class="l">${esc(n)}</td><td>${USD(v)}</td></tr>`).join("")+
+    `<tr><td class="l"><b>Sum (equals scope total)</b></td><td><b>${USD(c.ledgerSum)}</b></td></tr><tr><td class="l">Scope total</td><td>${USD(c.T)}</td></tr>`+
+    (c.surplus>0?`<tr><td class="l">Surplus (own line, outside the scope total)</td><td>${USD(c.surplus)}</td></tr>`:"")+
+    (c.cutExcess>0?`<tr><td class="l">School cut beyond the school share (reduced state foundation spending; outside the scope total)</td><td>${USD(c.cutExcess)}</td></tr>`:"");
+  const csv=["item,value"].concat(Object.entries(S).map(([k,v])=>`input.${k},${v}`)).concat(c.ledger.map(([n,v])=>`"ledger: ${n}",${Math.round(v)}`))
+    .concat([["requirement",c.G],["verified_revenue",c.V],["user_revenue",c.U],["balance",c.bal]].map(([n,v])=>`${n},${Math.round(v)}`))
+    .concat(TYPES.map(t=>`"gap: ${t.name}",${Math.round(-c.gap[t.k])}`)).concat([`model,${MODEL}`,`data,${dataVersion}`]).join("\n");
+  el("drawerInner").innerHTML=`
+    <div><h3>Versions</h3><p class="small">Model ${MODEL} (Specification v${esc(D.spec_version)}). Data ${esc(D.data_version)}, exported ${esc(D.exported)} from the master workbook. Independent verification of these figures is under way; this is a beta version.</p></div>
+    <div><h3>The six steps</h3><ol class="small" style="margin:0;padding-left:1.2rem">
+      <li>Gross charged by type (LBO Table 1, B5–B9), filtered by scope.</li>
+      <li>Fixed-sum levies: subtract B4 (LBO method) or keep in the requirement. Attributed to types in proportion to taxes charged.</li>
+      <li>Optional redirect of state reimbursements (B10).</li>
+      <li>School cut x% of the chosen base, capped at the school share of lost revenue; non-school funding levels.</li>
+      <li>Levers: state yield is routed by the sharing rule; local yield stays with its collector.</li>
+      <li>Balance and coverage by type; the meter reads "Revenue replaced" only if no type is short.</li></ol></div>
+    <div><h3>Accounting ledger</h3><div class="tblwrap"><table><tr><th>Line</th><th>Dollars</th></tr>${led}</table></div>
+      <p class="small muted">LBO Table 1's by-type amounts (B5–B9) sum to $1 more than its total (B1). The ledger uses B1; the coverage table uses B5–B9; the dollar is left as LBO publishes it.</p></div>
+    <div><h3>Intermediate values</h3><div class="tblwrap"><table><tr><th>Item</th><th>Value</th></tr>${inter}</table></div>
+      <p class="small muted">Test 15: base B per pupil (${USD(prm("B18")/ADM())}) differs from LSC's ${USD(prm("B19"))} because the two come from different series; the page uses cut dollars ÷ ADM. Teacher-equivalents are hidden in v1.0: LSC's $68,236 (FY 2024) and ODEW's $76,482 (FY 2025, unweighted district average) disagree.</p></div>
+    <div><h3>Parameters</h3><div class="tblwrap"><table><tr><th>ID</th><th class="l">Parameter</th><th>Value</th><th>Period</th><th>Status</th><th class="l">Source</th><th class="l">2nd check</th></tr>${prow}</table></div>
+      <p class="small muted">Status: V verified against the primary source; R reported by a secondary source; P derived; D a projection.</p></div>
+    <div><h3>Law</h3><div class="tblwrap"><table><tr><th>Rule</th><th class="l">Description</th><th>Value</th><th class="l">Source</th></tr>${lrow}</table></div></div>
+    <div><h3>Modeling choices under review</h3><ul class="small" style="margin:0;padding-left:1.1rem">
+      <li>Default sharing rule reads "remaining loss" as the loss left after spending reductions and after local revenue. The literal alternative (after spending reductions only) is the second option above.</li>
+      <li>R4 is available only on the TY 2027 path, following the pairing table. R6, R7 and R8 are base-year levers.</li>
+      <li>Erosion: β<sub>s</sub> also applies to county sales tax (R7); β<sub>i</sub> also applies to the school-district income tax (R8).</li>
+      <li>R6 is counted net of the fixed-sum share, which stays on retained Class II property instead of shifting to utilities.</li>
+      <li>The redirect toggle's on-screen wording comes from the locked spec and uses "savings," which the copy rules otherwise exclude.</li>
+      <li>Per-capita sharing (D-3 toggle) needs population by jurisdiction, which data 2026.1 does not have; it is shown disabled.</li></ul></div>
+    <div><h3>Scenario as CSV</h3><textarea id="csv" readonly aria-label="Scenario CSV">${esc(csv)}</textarea><button class="btn" id="copyCsv">Copy CSV</button></div>
+    <div><h3>Limitations</h3><ul class="small" style="margin:0;padding-left:1.1rem">
+      <li>Static: no migration, price, home-value or growth effects beyond the erosion sliders.</li>
+      <li>Statewide averages hide district spread; a balanced state plan can leave a district short.</li>
+      <li>Bond repayment under the fixed-sum shift is a legal question; the page shows both treatments.</li>
+      <li>The school funding formula after FY 2027 is not enacted.</li>
+      <li>Renter and business incidence are contested; payer labels are statutory only.</li>
+      <li>Sales tax on services (R2) stays hidden until a primary-source yield base exists.</li></ul></div>`;
+  el("copyCsv").addEventListener("click",()=>{ try{navigator.clipboard.writeText(el("csv").value).catch(()=>el("csv").select());}catch(e){el("csv").select();} });
+}
+
+/* ---------- data loading and vintages ---------- */
+async function loadData(v){
+  const r = await fetch(`data/ocg_ptax_data_${v}.min.json`);
+  if(!r.ok) throw new Error("missing "+v);
+  return r.json();
+}
+async function switchData(v){
+  D = await loadData(v); dataVersion=v; _cal=null; _baseA=null;
+  el("dvLabel").textContent=v;
+  el("pendingN").textContent=Object.values(D.parameters).filter(p=>!p.second_check_by).length;
+  fillCounties(); syncInputs(); render(); showVintage();
+}
+function showVintage(){
+  const n=el("vintageNote");
+  if(dataVersion!==CURRENT_DATA){
+    n.hidden=false; n.innerHTML=`<span>This scenario was built on data ${esc(dataVersion)} and shows its original result. Current data is ${CURRENT_DATA}.</span><button class="btn" id="recalc">Recalculate with current data</button>`;
+    el("recalc").addEventListener("click",()=>switchData(CURRENT_DATA));
+  } else n.hidden=true;
+}
+async function openScenario(tok, fromBox){
+  const {st,m,d}=decode(tok);
+  S=clampState(st);
+  if(d && d!==dataVersion){
+    try{ await switchData(d); }catch(e){ el("shareMsg").textContent=`Data ${d} is not available here; opened with ${dataVersion}.`; syncInputs(); render(); }
+  } else { syncInputs(); render(); }
+  if(m && m!==MODEL) el("shareMsg").textContent=`This link was made with model ${m}; this page runs model ${MODEL}.`;
+  else if(fromBox) el("shareMsg").textContent="Scenario opened.";
+}
+
+/* ---------- boot ---------- */
+(async function(){
+  buildLevers(); buildPresets(); bindAll();
+  el("drawer").addEventListener("toggle",()=>{ if(el("drawer").open) renderDrawer(compute(S)); });
+  try{
+    D = await loadData(CURRENT_DATA);
+  }catch(e){ el("mStatus").innerHTML=`<span class="pill short">The data file did not load. Reload the page.</span>`; return; }
+  el("pendingN").textContent=Object.values(D.parameters).filter(p=>!p.second_check_by).length;
+  fillCounties();
+  const h = location.hash.slice(1);
+  if(h){ await openScenario(h,false); showVintage(); }
+  else { syncInputs(); render(); }
+  window.OCG = {compute, encode, decode, get S(){return S}, set S(v){S=clampState({...DEF,...v}); syncInputs(); render();}, D:()=>D, DEF};
+})();
+</script>
