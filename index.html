@@ -64,7 +64,9 @@ section.q > .intro{max-width:70ch;color:var(--muted)}
 .row{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px;display:grid;gap:10px;min-width:0;align-content:start}
-.card.off{opacity:.62}
+.card.off > *:not(.why){opacity:.62}
+.card.off .why{color:var(--fg)}
+.btn[data-combine]{border-color:var(--accent);color:var(--accent);font-weight:700}
 .card .hd{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
 .card .id{font-size:var(--s-1);font-weight:700;color:var(--mark);letter-spacing:.06em}
 .tag{font-size:var(--s-1);color:var(--muted)}
@@ -175,6 +177,7 @@ textarea{width:100%;min-height:120px;font:12px/1.4 ui-monospace,Consolas,monospa
   <p class="small muted" id="pairLabel"></p>
   <div id="mxWrap" class="card" hidden>
     <label class="check"><input type="checkbox" id="mx"><span>Allow levers from other years (approximate)</span></label>
+    <p class="small" id="mxBaseNote" hidden><b>To combine sales and income taxes,</b> tick this box. It switches to the LBO TY 2027 path, where income tax has a published yield, and turns on the other levers using their earlier-year figures.</p>
     <p class="small muted">Turns on the sales tax, CAT, Class II, county sales tax and school income tax levers on the TY 2027 path using their earlier-year yields (FY 2025 sales tax and CAT, TY 2024 Class II, CY 2025 county sales tax, TY 2023 school income tax). Those yields come from a different year than the TY 2027 requirement and are not grown to 2027, so these levers likely understate what they would raise. Off by default.</p>
   </div>
   <p class="small muted">All funds is the default because the state's share of every tax dollar is not limited to the General Revenue Fund; ORC 131.51 credits fixed shares of GRF tax revenue to the Local Government Fund and Public Library Fund. GRF figures are one click away and both appear in the methodology drawer.</p>
@@ -641,7 +644,8 @@ function bindAll(){
       const key={path:"pa",basis:"ba",scope:"sc",fixed:"fs",r4m:"r4m"}[name]; S[key]=i.value; clampState(S); syncInputs(); render();}));
   }
   el("redirect").addEventListener("change",e=>{S.rd=e.target.checked?1:0; render();});
-  el("mx").addEventListener("change",e=>{S.mx=e.target.checked?1:0; render();});
+  el("mx").addEventListener("change",e=>{S.mx=e.target.checked?1:0; if(S.mx && S.pa!=="t"){ S.pa="t"; clampState(S); syncInputs(); } render();});
+  document.addEventListener("click",e=>{ const b=e.target.closest("[data-combine]"); if(!b) return; S.pa="t"; S.mx=1; clampState(S); syncInputs(); render(); el("sec-period").scrollIntoView({behavior:"smooth"}); });
   el("r4").addEventListener("change",e=>{S.r4=e.target.checked?1:0; render();});
   el("r7l").addEventListener("change",e=>{S.r7l=e.target.checked?1:0; render();});
   for(const k of ["r4a","r4b","r4c","r4d"]) el(k).addEventListener("change",e=>{S[k]=+e.target.value; clampState(S); e.target.value=S[k]; render();});
@@ -669,7 +673,7 @@ function syncInputs(){
   for(const k of NUMS){ el(k).value=S[k]; el(k+"_n").value=S[k]; }
   for(const [name,key] of [["path","pa"],["basis","ba"],["scope","sc"],["fixed","fs"],["r4m","r4m"]]){
     const i=document.querySelector(`input[name=${name}][value="${S[key]}"]`); if(i) i.checked=true; }
-  el("redirect").checked=!!S.rd; el("mx").checked=!!S.mx; el("r4").checked=!!S.r4; el("r7l").checked=!!S.r7l;
+  el("redirect").checked=!!S.rd; el("mx").checked=!!S.mx && S.pa==="t"; el("r4").checked=!!S.r4; el("r7l").checked=!!S.r7l;
   for(const k of ["r4a","r4b","r4c","r4d"]) el(k).value=S[k];
   el("r9").value=S.r9||""; el("r9t").value=S.r9t; el("sbase").value=S.sb; el("route").value=S.ro;
 }
@@ -706,7 +710,7 @@ function render(){
   // period
   el("pairLabel").textContent = D.pairing.find(p=>p.requirement_period===(c.ty27?"TY 2027":"TY 2024"))["label shown on page"];
   document.querySelector('input[name=scope][value="a"]').disabled = c.ty27;
-  el("mxWrap").hidden = !c.ty27;
+  el("mxWrap").hidden = false; el("mxBaseNote").hidden = c.ty27;
   for(const id of ["r1","r5","r6","r7","r8"]){ let f=el("mx_"+id); if(!f){ f=document.createElement("p"); f.id="mx_"+id; f.className="flag"; el("y_"+id).after(f);} f.hidden=!c.mixed; f.textContent="Approximate: yield from "+(id==="r6"?"TY 2024":id==="r7"?"CY 2025":id==="r8"?"TY 2023":"FY 2025")+", a different year from the TY 2027 requirement, not grown to 2027."; }
   // scope table
   el("scopeNote").textContent = c.scope==="a" ? "Wider than the amendment: adds public-utility tangible personal property taxes (B3). With nothing left to shift to, fixed-sum levies stay in the requirement. TPP is attributed to government types in proportion to real property taxes (a method)."
@@ -743,7 +747,7 @@ function render(){
   for(const id of ["r1","r3","r4","r5","r6","r7","r8","r9"]){
     const on=c.en[id]; const card=el("card_"+id); card.classList.toggle("off",!on);
     card.querySelectorAll("input,select").forEach(i=>i.disabled=!on);
-    const d=el("dis_"+id); d.hidden=on; if(!on) d.textContent = (id==="r3"||id==="r4")?dis.base:dis.ty27;
+    const d=el("dis_"+id); d.hidden=on; if(!on){ d.textContent = (id==="r3"||id==="r4")?dis.base:dis.ty27; if(id!=="r9" && !(c.scope==="s"&&id==="r7")){ const bt=document.createElement("button"); bt.type="button"; bt.className="btn"; bt.dataset.combine="1"; bt.style.marginTop="6px"; bt.style.display="block"; bt.textContent="Combine sales and income taxes (approximate)"; d.appendChild(bt);} }
   }
   if(c.scope==="s"){ el("card_r7").classList.add("off"); el("card_r7").querySelectorAll("input").forEach(i=>i.disabled=true); el("dis_r7").hidden=false; el("dis_r7").textContent="Not used in school-levies scope: county sales tax goes to counties, which keep their property taxes in this scope."; }
   for(const k of NUMS) if(el(k+"_o") && !k.startsWith("f") && k!=="x") el(k+"_o").textContent = ["r6","r7a","r8a","bs","bi","bc"].includes(k)? S[k]+"%" : (k==="r7"? (S[k]?PCT(S[k],2):"off") : (k==="r8"? PCT(S[k],2) : "+"+S[k].toFixed(2)+" pts"));
