@@ -173,6 +173,10 @@ textarea{width:100%;min-height:120px;font:12px/1.4 ui-monospace,Consolas,monospa
     </div>
   </div>
   <p class="small muted" id="pairLabel"></p>
+  <div id="mxWrap" class="card" hidden>
+    <label class="check"><input type="checkbox" id="mx"><span>Allow levers from other years (approximate)</span></label>
+    <p class="small muted">Turns on the sales tax, CAT, Class II, county sales tax and school income tax levers on the TY 2027 path using their earlier-year yields (FY 2025 sales tax and CAT, TY 2024 Class II, CY 2025 county sales tax, TY 2023 school income tax). Those yields come from a different year than the TY 2027 requirement and are not grown to 2027, so these levers likely understate what they would raise. Off by default.</p>
+  </div>
   <p class="small muted">All funds is the default because the state's share of every tax dollar is not limited to the General Revenue Fund; ORC 131.51 credits fixed shares of GRF tax revenue to the Local Government Fund and Public Library Fund. GRF figures are one click away and both appear in the methodology drawer.</p>
 </section>
 
@@ -368,7 +372,7 @@ const TYPES = [
 const NS = TYPES.slice(1);
 const DEF = {pa:"b",ba:"a",sc:"r",fs:"s",rd:0,x:0,sb:"B",fcty:100,ftwp:100,fmun:100,fspd:100,
   r1:0,r3:0,r4:0,r4m:"a",r4a:3.75,r4b:5,r4c:7.5,r4d:10,r5:0,r6:0,r7:0,r7a:100,r7l:0,r8:0,r8a:100,r9:0,r9t:"st",
-  bs:0,bi:0,bc:0,ro:"l"};
+  bs:0,bi:0,bc:0,ro:"l",mx:0};
 let S = {...DEF};
 let D = null, dataVersion = CURRENT_DATA, linkData = null;
 
@@ -454,7 +458,8 @@ function compute(st){
   const perI = (st.ba==="g"?prm("B14b"):prm("B14b")/prm("B14share"))/law("PIT_RATE")/100;
   const perC = prm("B16")/law("CAT_RATE")/100;   // per percentage point
   const bs=st.bs/100, bi=st.bi/100, bc=st.bc/100;
-  const en = {r1:!ty27, r3:ty27, r4:ty27, r5:!ty27, r6:!ty27, r7:!ty27, r8:!ty27, r9:true};
+  const mixed = ty27 && !!st.mx;
+  const en = {r1:!ty27||mixed, r3:ty27, r4:ty27, r5:!ty27||mixed, r6:!ty27||mixed, r7:!ty27||mixed, r8:!ty27||mixed, r9:true};
   const y = {};
   y.r1 = en.r1 ? st.r1*perS*(1-bs) : 0;
   y.r3 = en.r3 ? st.r3*perI*(1-bi) : 0;
@@ -505,7 +510,7 @@ function compute(st){
   // equivalents
   const salesOnly = !ty27 ? law("SALES_RATE")*100 + st.r1 + Math.max(0,-bal)/(perS*(1-bs)) : null;
   const incomeOnly = ty27 ? law("PIT_RATE")*100 + st.r3 + Math.max(0,-bal)/(perI*(1-bi)) : null;
-  return {ty27, scope, T, Tall, Fsum, F, Fret, Fg, Bg, L, N, C, cutReq, cutExcess, baseVals, NSred, nsRed, R, Rfull, G, Gnoredir, Gredir,
+  return {ty27, mixed, scope, T, Tall, Fsum, F, Fret, Fg, Bg, L, N, C, cutReq, cutExcess, baseVals, NSred, nsRed, R, Rfull, G, Gnoredir, Gredir,
     perS, perI, perC, y, en, V, U, local, Spool, rem, stateTo, gap, shortN, shortList, unrouted, bal, applied, appliedV, appliedU,
     shortfall, surplus, reduced, replaced, ledger, ledgerSum, salesOnly, incomeOnly, r4raw, r7d, r8base, scale, keepF, Ffrac};
 }
@@ -533,7 +538,7 @@ function clampState(st){
   c("r1",0,15); c("r3",0,10); c("r5",0,2); c("r6",0,100); c("r7",0,2.5); c("r7a",0,100); c("r8",0,3); c("r8a",0,100); c("r9",0,1e6);
   for(const k of ["r4a","r4b","r4c","r4d"]) c(k,2.75,15);
   c("bs",0,25); c("bi",0,25); c("bc",0,25);
-  st.rd = st.rd?1:0; st.r4=st.r4?1:0; st.r7l=st.r7l?1:0;
+  st.rd = st.rd?1:0; st.mx = st.mx?1:0; st.r4=st.r4?1:0; st.r7l=st.r7l?1:0;
   if(!["b","t"].includes(st.pa)) st.pa="b"; if(!["a","g"].includes(st.ba)) st.ba="a";
   if(!["r","s","a"].includes(st.sc)) st.sc="r"; if(!["s","k"].includes(st.fs)) st.fs="s";
   if(!["A","B","C"].includes(st.sb)) st.sb="B"; if(!["a","c"].includes(st.r4m)) st.r4m="a";
@@ -636,6 +641,7 @@ function bindAll(){
       const key={path:"pa",basis:"ba",scope:"sc",fixed:"fs",r4m:"r4m"}[name]; S[key]=i.value; clampState(S); syncInputs(); render();}));
   }
   el("redirect").addEventListener("change",e=>{S.rd=e.target.checked?1:0; render();});
+  el("mx").addEventListener("change",e=>{S.mx=e.target.checked?1:0; render();});
   el("r4").addEventListener("change",e=>{S.r4=e.target.checked?1:0; render();});
   el("r7l").addEventListener("change",e=>{S.r7l=e.target.checked?1:0; render();});
   for(const k of ["r4a","r4b","r4c","r4d"]) el(k).addEventListener("change",e=>{S[k]=+e.target.value; clampState(S); e.target.value=S[k]; render();});
@@ -663,7 +669,7 @@ function syncInputs(){
   for(const k of NUMS){ el(k).value=S[k]; el(k+"_n").value=S[k]; }
   for(const [name,key] of [["path","pa"],["basis","ba"],["scope","sc"],["fixed","fs"],["r4m","r4m"]]){
     const i=document.querySelector(`input[name=${name}][value="${S[key]}"]`); if(i) i.checked=true; }
-  el("redirect").checked=!!S.rd; el("r4").checked=!!S.r4; el("r7l").checked=!!S.r7l;
+  el("redirect").checked=!!S.rd; el("mx").checked=!!S.mx; el("r4").checked=!!S.r4; el("r7l").checked=!!S.r7l;
   for(const k of ["r4a","r4b","r4c","r4d"]) el(k).value=S[k];
   el("r9").value=S.r9||""; el("r9t").value=S.r9t; el("sbase").value=S.sb; el("route").value=S.ro;
 }
@@ -689,6 +695,7 @@ function render(){
     st=`<span class="pill short">${c.bal<-1?"Short "+B(-c.bal):"Statewide total covered"}</span><span>${c.shortN} of ${TYPES.filter(t=>c.Bg[t.k]>0).length} government types still short</span>`;
   }
   if(c.U>0){ const dep=Math.min(c.U,Math.max(0,c.G-c.V)); st+=`<span class="pill note">${B(dep)} of the coverage depends on user-entered revenue</span>`; }
+  if(c.mixed){ const mxv=c.y.r1+c.y.r5+c.y.r6+c.y.r7+c.y.r8; if(mxv>0) st+=`<span class="pill note">${B(mxv)} uses yields from other years (approximate)</span>`; }
   if(!S.rd) st+=`<span class="muted">With state reimbursements redirected: requirement ${B(c.Gredir)}</span>`;
   else st+=`<span class="muted">Without the redirect: requirement ${B(c.Gnoredir)}</span>`;
   if(c.ty27) st+=`<span class="muted">Flat income rate if income tax covered the rest: ${PCT(c.incomeOnly)}</span>`;
@@ -699,6 +706,8 @@ function render(){
   // period
   el("pairLabel").textContent = D.pairing.find(p=>p.requirement_period===(c.ty27?"TY 2027":"TY 2024"))["label shown on page"];
   document.querySelector('input[name=scope][value="a"]').disabled = c.ty27;
+  el("mxWrap").hidden = !c.ty27;
+  for(const id of ["r1","r5","r6","r7","r8"]){ let f=el("mx_"+id); if(!f){ f=document.createElement("p"); f.id="mx_"+id; f.className="flag"; el("y_"+id).after(f);} f.hidden=!c.mixed; f.textContent="Approximate: yield from "+(id==="r6"?"TY 2024":id==="r7"?"CY 2025":id==="r8"?"TY 2023":"FY 2025")+", a different year from the TY 2027 requirement, not grown to 2027."; }
   // scope table
   el("scopeNote").textContent = c.scope==="a" ? "Wider than the amendment: adds public-utility tangible personal property taxes (B3). With nothing left to shift to, fixed-sum levies stay in the requirement. TPP is attributed to government types in proportion to real property taxes (a method)."
     : c.scope==="s" ? "School district and JVSD levies only. Other governments keep their property taxes." : (c.ty27?"LBO's TY 2027 projection of real property taxes charged, $23.17B. Government-type amounts are TY 2024 shares applied to it (a method).":"The amendment's scope: all real property taxes charged, TY 2024.");
@@ -730,7 +739,7 @@ function render(){
   // levers
   const dis = {
     base:"Disabled in base-year mode. No flat-rate income tax yield exists for the same period as the TY 2024 requirement: FY 2025 collections came under the older two-bracket schedule. Switch to the LBO TY 2027 path to use it.",
-    ty27:"Disabled on the TY 2027 path. No FY 2028 yield is published for this lever; LBO pairs a TY 2027 repeal only with FY 2028 income tax."};
+    ty27:"Disabled on the TY 2027 path. No FY 2028 yield is published for this lever; LBO pairs a TY 2027 repeal only with FY 2028 income tax. To use it anyway, turn on \"Allow levers from other years (approximate)\" under the year setting."};
   for(const id of ["r1","r3","r4","r5","r6","r7","r8","r9"]){
     const on=c.en[id]; const card=el("card_"+id); card.classList.toggle("off",!on);
     card.querySelectorAll("input,select").forEach(i=>i.disabled=!on);
@@ -927,7 +936,7 @@ function renderDrawer(c){
     <div><h3>Law</h3><div class="tblwrap"><table><tr><th>Rule</th><th class="l">Description</th><th>Value</th><th class="l">Source</th></tr>${lrow}</table></div></div>
     <div><h3>Modeling choices under review</h3><ul class="small" style="margin:0;padding-left:1.1rem">
       <li>Default sharing rule reads "remaining loss" as the loss left after spending reductions and after local revenue. The literal alternative (after spending reductions only) is the second option above.</li>
-      <li>R4 is available only on the TY 2027 path, following the pairing table. R6, R7 and R8 are base-year levers.</li>
+      <li>R4 is available only on the TY 2027 path, following the pairing table. R6, R7 and R8 are base-year levers unless "Allow levers from other years" is on, which applies their earlier-year yields to the TY 2027 requirement without growth (revision of 12 Oct. 2026).</li>
       <li>Erosion: β<sub>s</sub> also applies to county sales tax (R7); β<sub>i</sub> also applies to the school-district income tax (R8).</li>
       <li>R6 is counted net of the fixed-sum share, which stays on retained Class II property instead of shifting to utilities.</li>
       <li>The redirect toggle's on-screen wording comes from the locked spec and uses "savings," which the copy rules otherwise exclude.</li>
