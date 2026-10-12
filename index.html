@@ -1,3 +1,9 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
 <title>Property Tax Abolition Calculator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -49,6 +55,7 @@ header.top .lede{max-width:68ch;color:var(--muted)}
 .status{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;font-size:var(--s-1)}
 .pill{display:inline-block;padding:1px 9px;border-radius:999px;font-weight:700;font-size:var(--s-1)}
 .pill.ok{background:var(--okbg);color:var(--ok)} .pill.short{background:var(--shortbg);color:var(--short)} .pill.note{background:var(--soft);color:var(--muted)}
+.mrow{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between}.mrow .status{flex:1 1 24rem}.mbtns{display:flex;gap:8px;flex-wrap:wrap}
 .meter details summary{cursor:pointer;color:var(--accent);font-size:var(--s-1)}
 
 /* sections */
@@ -125,6 +132,9 @@ textarea{width:100%;min-height:120px;font:12px/1.4 ui-monospace,Consolas,monospa
 @media (max-width:420px){.meter{position:static}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
+</head>
+<body>
+
 
 <div class="wrap">
 <header class="top">
@@ -144,7 +154,7 @@ textarea{width:100%;min-height:120px;font:12px/1.4 ui-monospace,Consolas,monospa
     <div class="fig bal"><div class="k">Balance</div><div class="v" id="mBal">—</div></div>
   </div>
   <div class="bar" aria-hidden="true"><span class="ver" id="barVer"></span><span class="usr" id="barUsr"></span></div>
-  <div class="status" id="mStatus"></div>
+  <div class="mrow"><div class="status" id="mStatus"></div><div class="mbtns"><button class="btn" id="clearLevers" type="button">Clear levers</button><button class="btn" id="startOver" type="button">Start over</button></div></div>
   <div class="sr" aria-live="polite" id="meterLive"></div>
 </div>
 
@@ -238,7 +248,7 @@ textarea{width:100%;min-height:120px;font:12px/1.4 ui-monospace,Consolas,monospa
 <!-- 4. Levers -->
 <section class="q" id="sec-levers">
   <h2>How do you want to raise the rest?</h2>
-  <p class="intro">Every lever starts at zero. Each shows its yield, who remits the tax by law (not who bears it economically), and where its yield base comes from.</p>
+  <div class="row" style="justify-content:space-between"><p class="intro" style="flex:1 1 30rem">Every lever starts at zero. Each shows its yield, who remits the tax by law (not who bears it economically), and where its yield base comes from.</p><button class="btn" id="clearLevers2" type="button">Clear all levers (R1–R9)</button></div>
   <div class="card">
     <h3>Presets</h3>
     <p class="small muted">None is loaded on open and none is recommended. Each sets one approach, then uses the state sales tax (or, on the TY 2027 path, the flat income tax) for whatever remains. Presets reset the levers but keep your spending choices.</p>
@@ -639,7 +649,15 @@ function bindAll(){
     const ok=()=>{el("shareMsg").textContent="Link copied.";}, fail=()=>{el("shareTxt").select(); el("shareMsg").textContent="Select the link above and copy it.";};
     try{ navigator.clipboard.writeText(t).then(ok,fail);}catch(e){fail();} });
   el("loadBtn").addEventListener("click",()=>openScenario(el("loadTxt").value, true));
-  el("resetBtn").addEventListener("click",()=>{ S={...DEF}; if(dataVersion!==CURRENT_DATA) switchData(CURRENT_DATA); else {syncInputs(); render();} el("shareMsg").textContent="Reset to the opening state."; });
+  const LEVER_KEYS=["r1","r3","r4","r4m","r4a","r4b","r4c","r4d","r5","r6","r7","r7a","r7l","r8","r8a","r9","r9t","bs","bi","bc"];
+  const clearLevers=()=>{ for(const k of LEVER_KEYS) S[k]=DEF[k]; syncInputs(); render(); el("shareMsg").textContent="All levers cleared."; };
+  el("clearLevers").addEventListener("click",clearLevers); el("clearLevers2").addEventListener("click",clearLevers);
+  el("startOver").addEventListener("click",()=>el("resetBtn").click());
+  document.querySelectorAll("input,select").forEach(x=>x.setAttribute("autocomplete","off"));
+  el("resetBtn").addEventListener("click",()=>{ S={...DEF};
+    document.querySelectorAll("#sec-hh input[type=number]").forEach(i=>{i.value="";});
+    el("hEx").value="1"; el("hBiz").value="0"; el("ten_o").checked=true; el("hOcc").checked=true; el("hFour").checked=false; el("hBizOwner").checked=false; el("hFS").value="s"; el("hCounty").value=""; fillTD();
+    el("loadTxt").value=""; if(dataVersion!==CURRENT_DATA) switchData(CURRENT_DATA); else {syncInputs(); render();} el("shareMsg").textContent="Reset to the opening state."; });
 }
 function syncInputs(){
   for(const k of NUMS){ el(k).value=S[k]; el(k+"_n").value=S[k]; }
@@ -767,7 +785,7 @@ function render(){
   renderDrawer(c);
   // share
   const tok=encode(S); el("shareTxt").value = (IN_FRAME? PUBLIC_URL : location.href.split("#")[0])+"#"+tok;
-  try{ history.replaceState(null,"","#"+tok); }catch(e){}
+  if(!IN_FRAME){ try{ history.replaceState(null,"","#"+tok); }catch(e){} }
   // R9 banner
   const ban=el("r9Banner"); if(c.U>0){ ban.hidden=false; ban.textContent=`This scenario contains ${B(c.U)} in user-entered revenue not verified by Ohio Common Ground.`; } else ban.hidden=true;
   window.__last = c;
@@ -969,3 +987,6 @@ async function openScenario(tok, fromBox){
   window.OCG = {compute, encode, decode, get S(){return S}, set S(v){S=clampState({...DEF,...v}); syncInputs(); render();}, D:()=>D, DEF};
 })();
 </script>
+
+</body>
+</html>
