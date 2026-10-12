@@ -131,7 +131,22 @@ textarea{width:100%;min-height:120px;font:12px/1.4 ui-monospace,Consolas,monospa
   h1{font-size:var(--s3)} h2{font-size:var(--s2)}
   .phi{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
-@media (max-width:420px){.meter{position:static}}
+@media (max-width:720px){
+  .meter{padding:8px 10px;gap:6px}
+  .meter .figs{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+  .meter .fig .k{font-size:11px}
+  .meter .fig .v{font-size:var(--s0)}
+  .bar{height:6px}
+  .mrow{gap:6px}
+  .mbtns .btn{padding:4px 8px;font-size:12px}
+  .meter .status{font-size:12px;gap:4px 8px}
+}
+@media (max-width:480px){
+  .meter .status .muted{display:none}
+  .meter .k .long{display:none}
+  .meter .fig .v{font-size:14px}
+}
+@media (min-width:481px){.meter .k .short{display:none}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -151,8 +166,8 @@ textarea{width:100%;min-height:120px;font:12px/1.4 ui-monospace,Consolas,monospa
 <div class="meter" id="meter" aria-describedby="meterLive">
   <div class="figs">
     <div class="fig"><div class="k">Requirement</div><div class="v" id="mReq">—</div></div>
-    <div class="fig"><div class="k">Verified revenue</div><div class="v" id="mVer">—</div></div>
-    <div class="fig"><div class="k">User-entered revenue (unverified)</div><div class="v" id="mUsr">—</div></div>
+    <div class="fig"><div class="k"><span class="long">Verified revenue</span><span class="short">Verified</span></div><div class="v" id="mVer">—</div></div>
+    <div class="fig"><div class="k"><span class="long">User-entered revenue (unverified)</span><span class="short">User-entered</span></div><div class="v" id="mUsr">—</div></div>
     <div class="fig bal"><div class="k">Balance</div><div class="v" id="mBal">—</div></div>
   </div>
   <div class="bar" aria-hidden="true"><span class="ver" id="barVer"></span><span class="usr" id="barUsr"></span></div>
